@@ -32,11 +32,13 @@ class PanimeDataset(PanoDataset):
             for sample in all_data:
                 scene_id = sample["scene_id"]
                 view_id = sample["view_id"]
+                pano_prompt = sample.get("pano_prompt", "")
                 # You can store any additional fields you want.
                 # But at a minimum, matterport-style is scene_id + view_id.
                 new_data.append({
                     "scene_id": scene_id,
-                    "view_id": view_id
+                    "view_id": view_id,
+                    "pano_prompt": pano_prompt
                 })
             return new_data
 

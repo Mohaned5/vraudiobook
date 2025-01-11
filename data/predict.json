@@ -1,0 +1,13 @@
+[
+    {
+      "scene_id": "1",
+      "view_id": "1",
+      "pano_prompt": "A wide open field at sunset"
+    },
+    {
+      "scene_id": "2",
+      "view_id": "1",
+      "pano_prompt": "An elegant ballroom with chandeliers"
+    }
+  ]
+  

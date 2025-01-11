@@ -61,6 +61,7 @@ def e2p(e_img, fov_deg, u_deg, v_deg, out_hw, mode=None):
     mode = choose_mode(e_img, mode)
     if isinstance(e_img, Tensor):
         b, c, he, we = e_img.shape
+        print(f"b: {b}")
         lons, lats = [], []
         if all([not hasattr(v, '__len__') for v in [fov_deg, u_deg, v_deg]]):
             b = 1  # if all scalars, then use broadcasting

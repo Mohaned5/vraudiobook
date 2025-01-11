@@ -115,9 +115,9 @@ class PanimeDataset(PanoDataset):
 
             # 3) Build 'cameras' dict in the format PanFusion expects
             cam_data = data['cameras_data']
-            FoV = np.array(cam_data['FoV'][0], dtype=np.float32)
-            theta = np.array(cam_data['theta'][0], dtype=np.float32)
-            phi = np.array(cam_data['phi'][0], dtype=np.float32)
+            FoV = np.array(cam_data['FoV'], dtype=np.float32)
+            theta = np.array(cam_data['theta'], dtype=np.float32)
+            phi = np.array(cam_data['phi'], dtype=np.float32)
 
             cameras = {
                 # If you want each perspective to be 256×256, set these to pers_resolution

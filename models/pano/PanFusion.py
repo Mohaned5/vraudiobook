@@ -189,6 +189,7 @@ class PanFusion(PanoGenerator):
 
     def inference_and_save(self, batch, output_dir, ext='png'):
         prompt_path = os.path.join(output_dir, 'prompt.txt')
+        print(f"Debug: Using prompt => {batch['pano_prompt']}")
         if os.path.exists(prompt_path):
             return
 

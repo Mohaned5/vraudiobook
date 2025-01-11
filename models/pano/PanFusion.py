@@ -33,6 +33,7 @@ class PanFusion(PanoGenerator):
             bs, 1, 4, equi_h, equi_w, device=device)
         pano_noises = pano_noise.expand(-1, len(cameras['FoV']), -1, -1, -1)
         pano_noises = rearrange(pano_noises, 'b m c h w -> (b m) c h w')
+        print("Debug: pano_noises.shape", pano_noises.shape)
         noise = e2p(
             pano_noises,
             cameras['FoV'], cameras['theta'], cameras['phi'],

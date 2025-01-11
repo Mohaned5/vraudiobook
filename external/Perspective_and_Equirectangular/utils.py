@@ -16,6 +16,7 @@ def choose_mode(img, mode):
 
 
 def index_list_or_scalar(lst, idx):
+    print(f"lst shape: {lst.shape}, idx: {idx}")
     if hasattr(lst, '__len__'):
         lst = lst[idx]
     if isinstance(lst, Tensor):

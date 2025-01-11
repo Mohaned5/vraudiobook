@@ -66,10 +66,12 @@ class PanFusion(PanoGenerator):
         device = batch['images'].device
         latents = self.encode_image(batch['images'], self.vae)
         b, m, c, h, w = latents.shape
+        print(f"[DEBUG] latents shape: {latents.shape}")  # Expected (b, m, c, h, w)
 
         pano_pad = self.pad_pano(batch['pano'])
         pano_latent_pad = self.encode_image(pano_pad, self.vae)
         pano_latent = self.unpad_pano(pano_latent_pad, latent=True)
+        print(f"[DEBUG] pano_latent shape: {pano_latent.shape}") 
         # # test encoded pano latent
         # pano_pad = ((pano_pad[0, 0] + 1) * 127.5).cpu().numpy().astype(np.uint8)
         # pano = ((batch['pano'][0, 0] + 1) * 127.5).cpu().numpy().astype(np.uint8)
@@ -77,7 +79,10 @@ class PanFusion(PanoGenerator):
 
         t = torch.randint(0, self.scheduler.config.num_train_timesteps,
                           (b,), device=latents.device).long()
+        print(f"[DEBUG] t shape: {t.shape}, values: {t}")
         pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
+        print(f"[DEBUG] pers_prompt_embd shape: {pers_prompt_embd.shape}")
+        print(f"[DEBUG] pano_prompt_embd shape: {pano_prompt_embd.shape}")
         pano_noise, noise = self.init_noise(
             b, *pano_latent.shape[-2:], h, w, batch['cameras'], device)
 

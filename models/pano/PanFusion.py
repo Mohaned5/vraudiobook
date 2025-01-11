@@ -35,7 +35,7 @@ class PanFusion(PanoGenerator):
         pano_noise = torch.randn(
             bs, 1, 4, equi_h, equi_w, device=device)
         print(f"[DEBUG init_noise] pano_noise.shape: {pano_noise.shape}")
-        pano_noises = pano_noise.expand(-1, len(cameras['FoV']), -1, -1, -1)
+        pano_noises = pano_noise.expand(-1, len(cameras['FoV']) // 2, -1, -1, -1)
         print(f"[DEBUG init_noise] pano_noises after expand shape: {pano_noises.shape}")  # Expected: (bs, num_views, 4, equi_h, equi_w)
         pano_noises = rearrange(pano_noises, 'b m c h w -> (b m) c h w')
         print(f"[DEBUG init_noise] pano_noises after rearrange shape: {pano_noises.shape}")  # Expected: (bs*m, 4, equi_h, equi_w)

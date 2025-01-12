@@ -28,6 +28,7 @@ class PanFusion(PanoGenerator):
             self.trainable_params.extend(self.mv_base_model.trainable_parameters)
 
     def init_noise(self, bs, equi_h, equi_w, pers_h, pers_w, cameras, device):
+        print("FoV shape before rearrangement:", cameras['FoV'].shape)
         cameras = {k: rearrange(v, 'b m ... -> (b m) ...') for k, v in cameras.items()}
         print(cameras['FoV'].shape)
         print("Length of FoV: ", len(cameras['FoV']))

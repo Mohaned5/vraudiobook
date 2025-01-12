@@ -32,7 +32,7 @@ class PanFusion(PanoGenerator):
         m = len(cameras['FoV']) // bs
         pano_noise = torch.randn(
             bs, 1, 4, equi_h, equi_w, device=device)
-        pano_noises = pano_noise.expand(-1, len(cameras['FoV']), -1, -1, -1)
+        pano_noises = pano_noise.expand(-1, m, -1, -1, -1)
         pano_noises = rearrange(pano_noises, 'b m c h w -> (b m) c h w')
         noise = e2p(
             pano_noises,

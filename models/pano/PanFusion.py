@@ -12,7 +12,7 @@ from lightning.pytorch.utilities import rank_zero_only
 class PanFusion(PanoGenerator):
     def __init__(
             self,
-            use_pers_prompt: bool = True,
+            use_pers_prompt: bool = False,
             use_pano_prompt: bool = True,
             copy_pano_prompt: bool = True,
             **kwargs
@@ -29,10 +29,17 @@ class PanFusion(PanoGenerator):
 
     def init_noise(self, bs, equi_h, equi_w, pers_h, pers_w, cameras, device):
         cameras = {k: rearrange(v, 'b m ... -> (b m) ...') for k, v in cameras.items()}
+        m = len(cameras['FoV']) // bs
         pano_noise = torch.randn(
             bs, 1, 4, equi_h, equi_w, device=device)
+        print("pano_noise shape:", pano_noise.shape)
         pano_noises = pano_noise.expand(-1, len(cameras['FoV']), -1, -1, -1)
+        print("pano_noises shape after expand:", pano_noises.shape)  # Expected: [bs, len(cameras['FoV']), 4, equi_h, equi_w]
+        for key, value in cameras.items():
+            print(f"{key} shape:", value.shape)
+
         pano_noises = rearrange(pano_noises, 'b m c h w -> (b m) c h w')
+        print("pano_noises shape after rearrange:", pano_noises.shape)  # Expected: [bs, len(cameras['FoV']), 4, equi_h, equi_w]
         noise = e2p(
             pano_noises,
             cameras['FoV'], cameras['theta'], cameras['phi'],

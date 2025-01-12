@@ -12,7 +12,7 @@ from lightning.pytorch.utilities import rank_zero_only
 class PanFusion(PanoGenerator):
     def __init__(
             self,
-            use_pers_prompt: bool = True,
+            use_pers_prompt: bool = False,
             use_pano_prompt: bool = True,
             copy_pano_prompt: bool = True,
             **kwargs

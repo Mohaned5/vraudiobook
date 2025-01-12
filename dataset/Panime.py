@@ -120,6 +120,7 @@ class PanimeDataset(PanoDataset):
             FoV = np.array(cam_data['FoV'][0], dtype=np.float32)
             theta = np.array(cam_data['theta'][0], dtype=np.float32)
             phi = np.array(cam_data['phi'][0], dtype=np.float32)
+            print(f"Sample {idx} - FoV shape: {FoV.shape}, values: {FoV}")
 
             desired_perspectives = 8
             original_num = max(len(FoV), len(theta), len(phi))

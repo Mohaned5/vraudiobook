@@ -121,18 +121,13 @@ class PanimeDataset(PanoDataset):
             theta = np.array(cam_data['theta'][0], dtype=np.float32)
             phi = np.array(cam_data['phi'][0], dtype=np.float32)
 
-            original_num = len(FoV)
-            print(f"Sample {idx}: Original number of FoV entries: {original_num}")
+            desired_perspectives = 8
+            original_num = max(len(FoV), len(theta), len(phi))
 
             # If there are more than 8 perspectives, skip this sample.
-            desired_perspectives = 8
-            if original_num > desired_perspectives:
+            if original_num != desired_perspectives:
+                # Print which sample is being skipped.
                 print(f"Sample {idx}: Skipping sample because FoV has {original_num} entries (expected {desired_perspectives}).")
-                return None
-
-            # (If there are fewer than 8, you could choose to pad instead -- here we’ll assume exactly 8 are required.)
-            if original_num < desired_perspectives:
-                print(f"Sample {idx}: Skipping sample because FoV has only {original_num} entries (expected {desired_perspectives}).")
                 return None
 
             cameras = {

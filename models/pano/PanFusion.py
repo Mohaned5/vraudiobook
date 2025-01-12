@@ -67,6 +67,25 @@ class PanFusion(PanoGenerator):
         return pers_prompt_embd, pano_prompt_embd
 
     def training_step(self, batch, batch_idx):
+        print("=== Batch Information ===")
+    
+        # Assume your batch is a dictionary. For instance:
+        print("Batch keys:", batch.keys())
+
+        # For example, if your cameras data is under the 'cameras' key:
+        if 'cameras' in batch:
+            cameras = batch['cameras']
+            # Print the type and shape of the FoV data.
+            if isinstance(cameras, dict) and 'FoV' in cameras:
+                print("Type of FoV:", type(cameras['FoV']))
+                print("Shape of FoV:", cameras['FoV'].shape)
+                # Optionally print the first sample's FoV values.
+                print("First sample FoV values:", cameras['FoV'][0])
+        
+        # You can print other relevant fields similarly.
+        # For instance, if you have images or latents:
+        if 'images' in batch:
+            print("Shape of images:", batch['images'].shape)
         device = batch['images'].device
         latents = self.encode_image(batch['images'], self.vae)
         b, m, c, h, w = latents.shape

@@ -1,6 +1,5 @@
 import numpy as np
 from PIL import Image
-import math
 import os
 import json
 from Perspective_and_Equirectangular import e2p
@@ -21,7 +20,6 @@ def split_panorama_to_perspectives(panorama_path, output_folder):
     pers_h, pers_w = 256, 256  # Perspective image size for each slice
 
     # Define camera positions for 8 views (each shifted by 45 degrees)
-    # Theta rotates from 0 to 315, and phi remains constant (0 degrees: as if looking forward)
     theta = torch.tensor([0, 45, 90, 135, 180, 225, 270, 315], dtype=torch.float32)
     phi = torch.tensor([0, 0, 0, 0, 0, 0, 0, 0], dtype=torch.float32)
     num_views = len(theta)
@@ -53,18 +51,6 @@ def split_panorama_to_perspectives(panorama_path, output_folder):
 
 # Function to project panorama to perspective views
 def generate_perspective_views(panorama_tensor, cameras, pers_h=256, pers_w=256):
-    """
-    Generates perspective views from a panorama tensor.
-
-    Args:
-        panorama_tensor (torch.Tensor): Tensor of shape (B, 3, H, W)
-        cameras (dict): Dictionary with 'FoV', 'theta', 'phi' tensors of shape (B, num_views)
-        pers_h (int): Height of each perspective view
-        pers_w (int): Width of each perspective view
-
-    Returns:
-        torch.Tensor: Tensor of shape (B, num_views, 3, pers_h, pers_w)
-    """
     B, C, H, W = panorama_tensor.shape
     num_views = cameras['FoV'].shape[1]
 
@@ -86,7 +72,6 @@ def generate_perspective_views(panorama_tensor, cameras, pers_h=256, pers_w=256)
                 mode='nearest'
             )
             batch_views.append(view)
-        # Concatenate views along a new dimension
         perspective_views.append(torch.cat(batch_views, dim=0))
     
     return torch.stack(perspective_views, dim=0)
@@ -107,9 +92,15 @@ def process_dataset(dataset_path, output_root):
             json.dump([], f, indent=4)
 
     for i, entry in enumerate(dataset):
-        # Extract image path and prepare output directories
-        print(f"Processing entry {i+1}/{len(dataset)}")
+        # Extract image path
         pano_image_path = entry['pano']
+
+        # Skip if panorama file doesn't exist
+        if not os.path.exists(pano_image_path):
+            print(f"Skipping entry {i+1}/{len(dataset)}: File not found - {pano_image_path}")
+            continue
+
+        print(f"Processing entry {i+1}/{len(dataset)}")
         entry_name = os.path.splitext(os.path.basename(pano_image_path))[0]
         entry_folder = os.path.join(output_train_folder, entry_name)
         pano_folder = os.path.join(entry_folder, 'pano')

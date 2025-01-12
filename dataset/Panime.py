@@ -122,6 +122,7 @@ class PanimeDataset(PanoDataset):
             theta = np.array(cam_data['theta'][0], dtype=np.float32)
             phi = np.array(cam_data['phi'][0], dtype=np.float32)
 
+            print(f"Sample {idx}: Final FoV shape: {FoV.shape}, Theta shape: {theta.shape}, Phi shape: {phi.shape}")
             cameras = {
                 # If you want each perspective to be 256×256, set these to pers_resolution
                 # or keep them as you like. Here we hard-code to 512 as an example.

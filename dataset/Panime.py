@@ -79,6 +79,8 @@ class PanimeDataset(PanoDataset):
                     "cameras_data": sample["cameras"]
                 }
                 new_data.append(entry)
+            
+            print(f"Loaded {len(new_data)} samples for mode '{mode}'.")
             return new_data
 
     def scan_results(self, result_dir):
@@ -116,6 +118,7 @@ class PanimeDataset(PanoDataset):
             # 3) Build 'cameras' dict in the format PanFusion expects
             cam_data = data['cameras_data']
             FoV = np.array(cam_data['FoV'][0], dtype=np.float32)
+            print(f"Sample {idx}: Number of FoV entries: {len(FoV)}")
             theta = np.array(cam_data['theta'][0], dtype=np.float32)
             phi = np.array(cam_data['phi'][0], dtype=np.float32)
 

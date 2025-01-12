@@ -43,7 +43,7 @@ class PanimeDataset(PanoDataset):
             return new_data
 
         else:
-            split_file = os.path.join(self.data_dir, f"{mode}.json")
+            split_file = os.path.join(self.data_dir, f"{mode}8.json")
             if not os.path.exists(split_file):
                 raise FileNotFoundError(f"Cannot find JSON split file: {split_file}")
 
@@ -65,9 +65,9 @@ class PanimeDataset(PanoDataset):
                     print(f"Skipping entry {pano_id}: pano file missing at {pano_path}")
                     continue
 
-                if not all(os.path.exists(img_path) for img_path in images_paths):
-                    print(f"Skipping entry {pano_id}: one or more images missing.")
-                    continue
+                # if not all(os.path.exists(img_path) for img_path in images_paths):
+                #     print(f"Skipping entry {pano_id}: one or more images missing.")
+                #     continue
 
                 # Add valid entries
                 entry = {

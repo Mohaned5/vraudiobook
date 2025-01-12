@@ -28,12 +28,8 @@ class PanFusion(PanoGenerator):
             self.trainable_params.extend(self.mv_base_model.trainable_parameters)
 
     def init_noise(self, bs, equi_h, equi_w, pers_h, pers_w, cameras, device):
-        print("FoV shape before rearrangement:", cameras['FoV'].shape)
         cameras = {k: rearrange(v, 'b m ... -> (b m) ...') for k, v in cameras.items()}
-        print(cameras['FoV'].shape)
-        print("Length of FoV: ", len(cameras['FoV']))
         m = len(cameras['FoV']) // bs
-        print(bs, m)
         pano_noise = torch.randn(
             bs, 1, 4, equi_h, equi_w, device=device)
         pano_noises = pano_noise.expand(-1, m, -1, -1, -1)
@@ -67,25 +63,6 @@ class PanFusion(PanoGenerator):
         return pers_prompt_embd, pano_prompt_embd
 
     def training_step(self, batch, batch_idx):
-        print("=== Batch Information ===")
-    
-        # Assume your batch is a dictionary. For instance:
-        print("Batch keys:", batch.keys())
-
-        # For example, if your cameras data is under the 'cameras' key:
-        if 'cameras' in batch:
-            cameras = batch['cameras']
-            # Print the type and shape of the FoV data.
-            if isinstance(cameras, dict) and 'FoV' in cameras:
-                print("Type of FoV:", type(cameras['FoV']))
-                print("Shape of FoV:", cameras['FoV'].shape)
-                # Optionally print the first sample's FoV values.
-                print("First sample FoV values:", cameras['FoV'][0])
-        
-        # You can print other relevant fields similarly.
-        # For instance, if you have images or latents:
-        if 'images' in batch:
-            print("Shape of images:", batch['images'].shape)
         device = batch['images'].device
         latents = self.encode_image(batch['images'], self.vae)
         b, m, c, h, w = latents.shape

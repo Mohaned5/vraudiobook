@@ -118,11 +118,23 @@ class PanimeDataset(PanoDataset):
             # 3) Build 'cameras' dict in the format PanFusion expects
             cam_data = data['cameras_data']
             FoV = np.array(cam_data['FoV'][0], dtype=np.float32)
-            print(f"Sample {idx}: Number of FoV entries: {len(FoV)}")
             theta = np.array(cam_data['theta'][0], dtype=np.float32)
             phi = np.array(cam_data['phi'][0], dtype=np.float32)
 
-            print(f"Sample {idx}: Final FoV shape: {FoV.shape}, Theta shape: {theta.shape}, Phi shape: {phi.shape}")
+            original_num = len(FoV)
+            print(f"Sample {idx}: Original number of FoV entries: {original_num}")
+
+            # If there are more than 8 perspectives, skip this sample.
+            desired_perspectives = 8
+            if original_num > desired_perspectives:
+                print(f"Sample {idx}: Skipping sample because FoV has {original_num} entries (expected {desired_perspectives}).")
+                return None
+
+            # (If there are fewer than 8, you could choose to pad instead -- here we’ll assume exactly 8 are required.)
+            if original_num < desired_perspectives:
+                print(f"Sample {idx}: Skipping sample because FoV has only {original_num} entries (expected {desired_perspectives}).")
+                return None
+
             cameras = {
                 # If you want each perspective to be 256×256, set these to pers_resolution
                 # or keep them as you like. Here we hard-code to 512 as an example.

@@ -157,6 +157,7 @@ class PanimeDataset(PanoDataset):
             # 4) Save everything the pipeline expects
             data['prompt'] = data['prompts']
             data['cameras'] = cameras
+            print(f"Sample {idx} - Cameras: {cameras}") 
             data['height'] = self.config['pano_height']
             data['width'] = self.config['pano_height'] * 2  # typical equirect (2:1 ratio)
 

@@ -3,7 +3,7 @@ from PIL import Image
 import math
 import os
 import json
-from external.Perspective_and_Equirectangular import e2p
+from Perspective_and_Equirectangular import e2p
 import torch
 from einops import rearrange
 

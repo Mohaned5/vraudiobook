@@ -43,11 +43,7 @@ class PanimeDataset(PanoDataset):
             return new_data
 
         else:
-            perspective_count = int(os.getenv("num_perspectives", "8"))
-            if perspective_count == 8:
-                split_file = os.path.join(self.data_dir, f"{mode}{perspective_count}.json")
-            else:
-                split_file = os.path.join(self.data_dir, f"{mode}.json")
+            split_file = os.path.join(self.data_dir, f"{mode}8.json")
             if not os.path.exists(split_file):
                 raise FileNotFoundError(f"Cannot find JSON split file: {split_file}")
 

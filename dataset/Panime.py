@@ -166,7 +166,7 @@ class PanimeDataModule(PanoDataModule):
 
     def __init__(
         self,
-        data_dir: str = 'data/Panime',
+        data_dir: str = 'data/Panime8',
         **kwargs
     ):
         super().__init__(data_dir=data_dir, **kwargs)

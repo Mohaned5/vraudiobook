@@ -38,26 +38,29 @@ class MultiViewBaseModel(nn.Module):
     def forward(self, latents, pano_latent, timestep, prompt_embd, pano_prompt_embd, cameras,
                 pers_layout_cond=None, pano_layout_cond=None):
         # bs*m, 4, 64, 64
-        print("Inside MVBaseModel.forward:")
-        print("latents shape:", latents.shape)
-        print("pano_latent shape:", pano_latent.shape)
-        print("timestep shape:", timestep.shape)
-        print("prompt_embd shape:", prompt_embd.shape)
-        print("pano_prompt_embd shape:", pano_prompt_embd.shape)
-        # If you're computing noise_z/pano_noise_z from these inputs, log after that computation.
-        # For example, if noise_z is computed by adding noise via a scheduler or some function:
-        noise_z = latents  # or the actual computation if any
-        pano_noise_z = pano_latent  # or adjust based on actual computation
-        print("noise_z shape:", noise_z.shape)
-        print("pano_noise_z shape:", pano_noise_z.shape)
+        print("=== Start of MultiViewBaseModel.forward ===")
+        print("Input latents shape:", latents.shape)          # Expect [4, 8, 4, 32, 32]
+        print("Input pano_latent shape:", pano_latent.shape)    # Expect [4, 1, 4, 64, 128]
+        print("Input timestep shape:", timestep.shape)          # Expect [4, 8]
+        print("Input prompt_embd shape:", prompt_embd.shape)    # e.g., [1, 8, 77, 1024]
+        print("Input pano_prompt_embd shape:", pano_prompt_embd.shape)
+        # Additionally, if needed:
+        print("Input cameras keys and shapes:")
+        for k, v in cameras.items():
+            print(f"  {k}: {v.shape}")
         if latents is not None:
             b, m, c, h, w = latents.shape
+            print("Before rearranging latents:", latents.shape)
             hidden_states = rearrange(latents, 'b m c h w -> (b m) c h w')
+            print("After rearranging latents (hidden_states):", hidden_states.shape)
+
         if cameras is not None:
             cameras = {k: rearrange(v, 'b m ... -> (b m) ...') for k, v in cameras.items()}
         if prompt_embd is not None:
             prompt_embd = rearrange(prompt_embd, 'b m l c -> (b m) l c')
+        print("Before rearranging pano_latent:", pano_latent.shape)
         pano_latent = rearrange(pano_latent, 'b m c h w -> (b m) c h w')
+        print("After rearranging pano_latent:", pano_latent.shape)
         pano_prompt_embd = rearrange(pano_prompt_embd, 'b m l c -> (b m) l c')
 
         # 1. process timesteps
@@ -66,10 +69,12 @@ class MultiViewBaseModel(nn.Module):
             timestep = timestep.reshape(-1)
             t_emb = self.unet.time_proj(timestep).to(self.unet.dtype)  # (bs, 320)
             emb = self.unet.time_embedding(t_emb)  # (bs, 1280)
+            print("Time embedding for unet, emb shape:", emb.shape)
         else:
             pano_timestep = timestep
         pano_t_emb = self.pano_unet.time_proj(pano_timestep).to(self.pano_unet.dtype)  # (bs, 320)
         pano_emb = self.pano_unet.time_embedding(pano_t_emb)  # (bs, 1280)
+        print("Time embedding for pano, pano_emb shape:", pano_emb.shape)
 
         if self.pers_cn is None:
             pers_layout_cond = None
@@ -77,6 +82,7 @@ class MultiViewBaseModel(nn.Module):
             pano_layout_cond = None
         if pers_layout_cond is not None:
             pers_layout_cond = rearrange(pers_layout_cond, 'b m ... -> (b m) ...')
+            print("Pers_layout_cond shape after rearrangement:", pers_layout_cond.shape)
             down_block_additional_residuals, mid_block_additional_residual = self.pers_cn(
                 hidden_states,
                 timestep,
@@ -84,6 +90,8 @@ class MultiViewBaseModel(nn.Module):
                 controlnet_cond=pers_layout_cond,
                 return_dict=False,
             )
+            print("ControlNet output for pers - down_block_additional_residuals shapes:",
+              [x.shape for x in down_block_additional_residuals])
         if pano_layout_cond is not None:
             pano_layout_cond = rearrange(pano_layout_cond, 'b m ... -> (b m) ...')
             pano_down_block_additional_residuals, pano_mid_block_additional_residual = self.pano_cn(

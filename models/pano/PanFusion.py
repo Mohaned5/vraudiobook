@@ -34,7 +34,7 @@ class PanFusion(PanoGenerator):
         for k, v in cameras.items():
             print(f"Rearranged cameras[{k}].shape: {v.shape}")
     
-        m = len(cameras['FoV']) // bs
+        m = len(cameras['FoV']) #// bs
         print(f"Computed m (cameras per batch): {m}")
         pano_noise = torch.randn(
             bs, 1, 4, equi_h, equi_w, device=device)

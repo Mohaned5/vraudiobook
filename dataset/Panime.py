@@ -116,9 +116,9 @@ class PanimeDataset(PanoDataset):
 
         # Camera data extraction
         cam_data = data.get('cameras_data', {})
-        FoV = np.array(cam_data.get('FoV', [90.0] * 8), dtype=np.float32)
-        theta = np.array(cam_data.get('theta', [i * 45.0 for i in range(8)]), dtype=np.float32)
-        phi = np.array(cam_data.get('phi', [0.0] * 8), dtype=np.float32)
+        FoV = np.array(cam_data.get('FoV', [90.0] * 8)[0], dtype=np.float32)
+        theta = np.array(cam_data.get('theta', [i * 45.0 for i in range(8)])[0], dtype=np.float32)
+        phi = np.array(cam_data.get('phi', [0.0] * 8)[0], dtype=np.float32)
 
         # Generate K and R matrices for each camera view
         Ks, Rs = [], []

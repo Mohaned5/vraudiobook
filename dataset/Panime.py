@@ -66,8 +66,9 @@ class PanimeDataset(PanoDataset):
                     continue
 
                 if not all(os.path.exists(img_path) for img_path in images_paths):
-                    print(f"Skipping entry {pano_id}: one or more images missing.")
+                    print(f"Skipping {pano_id}: Missing image paths - {[img_path for img_path in images_paths if not os.path.exists(img_path)]}")
                     continue
+
 
                 # Add valid entries
                 entry = {

@@ -49,6 +49,8 @@ class PanFusion(PanoGenerator):
             pano_noises,
             cameras['FoV'], cameras['theta'], cameras['phi'],
             (pers_h, pers_w), mode='nearest')
+        print("Noise shape after init_noise:", noise.shape)
+
         noise = rearrange(noise, '(b m) c h w -> b m c h w', b=bs, m=m)
         # noise_sample = noise[0, 0, :3]
         # pano_noise_sample = pano_noise[0, 0, :3]

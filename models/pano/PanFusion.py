@@ -28,8 +28,15 @@ class PanFusion(PanoGenerator):
             self.trainable_params.extend(self.mv_base_model.trainable_parameters)
 
     def init_noise(self, bs, equi_h, equi_w, pers_h, pers_w, cameras, device):
+        print("cameras['FoV'] type:", type(cameras['FoV']))
+        if hasattr(cameras['FoV'], 'shape'):
+            print("cameras['FoV'] shape:", cameras['FoV'].shape)
+        else:
+            print("Length of cameras['FoV']:", len(cameras['FoV']))
+        
         cameras = {k: rearrange(v, 'b m ... -> (b m) ...') for k, v in cameras.items()}
         m = len(cameras['FoV']) // bs
+        print("Computed m:", m)
         pano_noise = torch.randn(
             bs, 1, 4, equi_h, equi_w, device=device)
         pano_noises = pano_noise.expand(-1, m, -1, -1, -1)

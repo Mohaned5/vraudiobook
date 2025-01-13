@@ -43,7 +43,7 @@ class PanimeDataset(PanoDataset):
             return new_data
 
         else:
-            split_file = os.path.join(self.data_dir, f"{mode}8.json")
+            split_file = os.path.join(self.data_dir, f"{mode}.json")
             if not os.path.exists(split_file):
                 raise FileNotFoundError(f"Cannot find JSON split file: {split_file}")
 
@@ -65,9 +65,9 @@ class PanimeDataset(PanoDataset):
                     print(f"Skipping entry {pano_id}: pano file missing at {pano_path}")
                     continue
 
-                # if not all(os.path.exists(img_path) for img_path in images_paths):
-                #     print(f"Skipping entry {pano_id}: one or more images missing.")
-                #     continue
+                if not all(os.path.exists(img_path) for img_path in images_paths):
+                    print(f"Skipping entry {pano_id}: one or more images missing.")
+                    continue
 
                 # Add valid entries
                 entry = {
@@ -115,10 +115,10 @@ class PanimeDataset(PanoDataset):
 
             # 3) Build 'cameras' dict in the format PanFusion expects
             cam_data = data['cameras_data']
-            FoV = np.array(cam_data['FoV'][0], dtype=np.float32)
-            theta = np.array(cam_data['theta'][0], dtype=np.float32)
-            phi = np.array(cam_data['phi'][0], dtype=np.float32)
-
+            FoV = torch.as_tensor(np.array(cam_data['FoV'][0], dtype=np.float32))
+            theta = torch.as_tensor(np.array(cam_data['theta'][0], dtype=np.float32))
+            phi = torch.as_tensor(np.array(cam_data['phi'][0], dtype=np.float32))
+            
             cameras = {
                 # If you want each perspective to be 256×256, set these to pers_resolution
                 # or keep them as you like. Here we hard-code to 512 as an example.
@@ -133,14 +133,14 @@ class PanimeDataset(PanoDataset):
             Ks, Rs = [], []
             for f, t, p in zip(FoV, theta, phi):
                 K, R = get_K_R(
-                    f, t, p,
+                    f.item(), t.item(), p.item(),
                     self.config['pers_resolution'],
                     self.config['pers_resolution']
                 )
                 Ks.append(K)
                 Rs.append(R)
-            cameras['K'] = np.stack(Ks).astype(np.float32)
-            cameras['R'] = np.stack(Rs).astype(np.float32)
+            cameras['K'] = torch.as_tensor(np.stack(Ks).astype(np.float32))
+            cameras['R'] = torch.as_tensor(np.stack(Rs).astype(np.float32))
 
             # 4) Save everything the pipeline expects
             data['prompt'] = data['prompts']

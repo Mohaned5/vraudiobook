@@ -28,31 +28,29 @@ class PanFusion(PanoGenerator):
             self.trainable_params.extend(self.mv_base_model.trainable_parameters)
 
     def init_noise(self, bs, equi_h, equi_w, pers_h, pers_w, cameras, device):
-        print("cameras['FoV'] type:", type(cameras['FoV']))
-        if hasattr(cameras['FoV'], 'shape'):
-            print("cameras['FoV'] shape:", cameras['FoV'].shape)
-        else:
-            print("Length of cameras['FoV']:", len(cameras['FoV']))
-        
         for k, v in cameras.items():
-            print(f"Before rearrange - {k}: {v.shape}")
+            print(f"Original cameras[{k}].shape: {v.shape}")
         cameras = {k: rearrange(v, 'b m ... -> (b m) ...') for k, v in cameras.items()}
         for k, v in cameras.items():
-            print(f"After rearrange - {k}: {v.shape}")
+            print(f"Rearranged cameras[{k}].shape: {v.shape}")
+    
         m = len(cameras['FoV']) // bs
-        print("Computed m:", m)
+        print(f"Computed m (cameras per batch): {m}")
         pano_noise = torch.randn(
             bs, 1, 4, equi_h, equi_w, device=device)
+        print(f"pano_noise.shape: {pano_noise.shape}")
         pano_noises = pano_noise.expand(-1, m, -1, -1, -1)
+        print(f"pano_noises after expand shape: {pano_noises.shape}")
         pano_noises = rearrange(pano_noises, 'b m c h w -> (b m) c h w')
+        print(f"pano_noises after rearrange shape: {pano_noises.shape}")
+
         noise = e2p(
             pano_noises,
             cameras['FoV'], cameras['theta'], cameras['phi'],
             (pers_h, pers_w), mode='nearest')
-        print("Noise shape after init_noise:", noise.shape)
-
+        print(f"Noise returned from e2p shape: {noise.shape}")
         noise = rearrange(noise, '(b m) c h w -> b m c h w', b=bs, m=m)
-        print("Noise shape after rearrange:", noise.shape)
+        print(f"Noise after final rearrange shape: {noise.shape}")
         # noise_sample = noise[0, 0, :3]
         # pano_noise_sample = pano_noise[0, 0, :3]
         return pano_noise, noise
@@ -94,16 +92,9 @@ class PanFusion(PanoGenerator):
         pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
         pano_noise, noise = self.init_noise(
             b, *pano_latent.shape[-2:], h, w, batch['cameras'], device)
-        
-        print("Latents shape:", latents.shape)        # Expecting [b, m, c, h, w]
 
         noise_z = self.scheduler.add_noise(latents, noise, t)
-        print("noise_z shape after scheduler.add_noise:", noise_z.shape)
-
         pano_noise_z = self.scheduler.add_noise(pano_latent, pano_noise, t)
-
-        print("pano_noise_z shape after scheduler.add_noise:", pano_noise_z.shape)
-
         t = t[:, None].repeat(1, m)
 
         denoise, pano_denoise = self.mv_base_model(

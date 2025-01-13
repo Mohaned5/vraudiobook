@@ -52,6 +52,7 @@ class PanFusion(PanoGenerator):
         print("Noise shape after init_noise:", noise.shape)
 
         noise = rearrange(noise, '(b m) c h w -> b m c h w', b=bs, m=m)
+        print("Noise shape after rearrange:", noise.shape)
         # noise_sample = noise[0, 0, :3]
         # pano_noise_sample = pano_noise[0, 0, :3]
         return pano_noise, noise

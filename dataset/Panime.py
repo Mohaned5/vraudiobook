@@ -58,19 +58,16 @@ class PanimeDataset(PanoDataset):
 
                 # Define paths
                 pano_path = os.path.join(self.data_dir, sample["pano"])
-                prompt_name_dir = os.path.dirname(os.path.dirname(sample["pano"]))  # Extracts the directory part of the pano path
-                images_paths = [os.path.join(self.data_dir, prompt_name_dir, img) for img in sample["images"]]
-
+                images_paths = [os.path.join(self.data_dir, img) for img in sample["images"]]
 
                 # Check if all paths exist
                 if not os.path.exists(pano_path):
                     print(f"Skipping entry {pano_id}: pano file missing at {pano_path}")
                     continue
 
-                if not all(os.path.exists(img_path) for img_path in images_paths):
-                    print(f"Skipping {pano_id}: Missing image paths - {[img_path for img_path in images_paths if not os.path.exists(img_path)]}")
-                    continue
-
+                # if not all(os.path.exists(img_path) for img_path in images_paths):
+                #     print(f"Skipping entry {pano_id}: one or more images missing.")
+                #     continue
 
                 # Add valid entries
                 entry = {
@@ -100,49 +97,62 @@ class PanimeDataset(PanoDataset):
 
     def get_data(self, idx):
         data = self.data[idx].copy()
-        scene_id, view_id = data.get('scene_id', ''), data.get('view_id', '')
 
-        # Construct pano_id for compatibility
-        if self.mode == 'predict' and self.config['repeat_predict'] > 1:
-            data['pano_id'] = f"{scene_id}_{view_id}_{data['repeat_id']:06d}"
-        else:
+        # 1) If in predict mode with repeated sampling
+        if self.mode == 'predict':
+            scene_id = data['scene_id']
+            view_id = data['view_id']
+
+            # Build a unique pano_id just like Matterport
             data['pano_id'] = f"{scene_id}_{view_id}"
+            data['pano_prompt'] = data.get('pano_prompt', "")
 
-        # Add pano_path directly from JSON (your dataset already includes it)
-        data['pano_path'] = data.get('pano_path', '')
-        if not os.path.exists(data['pano_path']):
-            raise ValueError(f"pano_path does not exist: {data['pano_path']}")
-        # Use `pano_prompt` directly from JSON
-        data['pano_prompt'] = data.get('pano_prompt', '')
+        else:
+            # 2) Possibly apply unconditioned training ratio
+            if self.mode == 'train' and self.result_dir is None and random.random() < self.config['uncond_ratio']:
+                data['pano_prompt'] = ""
+                data['prompts'] = [""] * len(data['prompts'])
 
-        # Use prompts directly from JSON
-        data['prompt'] = data.get('prompts', [''] * 8)  # Ensure 8 prompts (fallback if missing)
+            # 3) Build 'cameras' dict in the format PanFusion expects
+            cam_data = data['cameras_data']
+            FoV = np.array(cam_data['FoV'][0], dtype=np.float32)
+            theta = np.array(cam_data['theta'][0], dtype=np.float32)
+            phi = np.array(cam_data['phi'][0], dtype=np.float32)
 
-        # Camera data extraction
-        cam_data = data.get('cameras_data', {})
-        FoV = np.array(cam_data.get('FoV', [90.0] * 8)[0], dtype=np.float32)
-        theta = np.array(cam_data.get('theta', [i * 45.0 for i in range(8)])[0], dtype=np.float32)
-        phi = np.array(cam_data.get('phi', [0.0] * 8)[0], dtype=np.float32)
+            cameras = {
+                # If you want each perspective to be 256×256, set these to pers_resolution
+                # or keep them as you like. Here we hard-code to 512 as an example.
+                'height': np.full_like(FoV, self.config['pers_resolution'], dtype=int),
+                'width': np.full_like(FoV, self.config['pers_resolution'], dtype=int),
+                'FoV': FoV,
+                'theta': theta,
+                'phi': phi,
+            }
 
-        # Generate K and R matrices for each camera view
-        Ks, Rs = [], []
-        for f, t, p in zip(FoV, theta, phi):
-            K, R = get_K_R(f, t, p, self.config['pers_resolution'], self.config['pers_resolution'])
-            Ks.append(K)
-            Rs.append(R)
+            # Compute intrinsics & extrinsics
+            Ks, Rs = [], []
+            for f, t, p in zip(FoV, theta, phi):
+                K, R = get_K_R(
+                    f, t, p,
+                    self.config['pers_resolution'],
+                    self.config['pers_resolution']
+                )
+                Ks.append(K)
+                Rs.append(R)
+            cameras['K'] = np.stack(Ks).astype(np.float32)
+            cameras['R'] = np.stack(Rs).astype(np.float32)
 
-        # Build camera dictionary in the desired output format
-        data['cameras'] = {
-            'height': np.full_like(FoV, self.config['pers_resolution'], dtype=int),
-            'width': np.full_like(FoV, self.config['pers_resolution'], dtype=int),
-            'FoV': FoV,
-            'theta': theta,
-            'phi': phi,
-            'K': np.stack(Ks).astype(np.float32),
-            'R': np.stack(Rs).astype(np.float32),
-        }
+            # 4) Save everything the pipeline expects
+            data['prompt'] = data['prompts']
+            data['cameras'] = cameras
+            data['height'] = self.config['pano_height']
+            data['width'] = self.config['pano_height'] * 2  # typical equirect (2:1 ratio)
 
-        # Include path to predicted panorama if in result mode
+        # # 5) Provide the path for the pano
+        # if self.mode != 'predict':
+        #     data['pano_path'] = data['pano_path']
+
+        # 6) If there's a results directory, set path for predicted pano
         if self.result_dir is not None:
             data['pano_pred_path'] = os.path.join(self.result_dir, data['pano_id'], 'pano.png')
 

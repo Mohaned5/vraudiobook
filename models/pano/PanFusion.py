@@ -97,6 +97,11 @@ class PanFusion(PanoGenerator):
 
         noise_z = self.scheduler.add_noise(latents, noise, t)
         pano_noise_z = self.scheduler.add_noise(pano_latent, pano_noise, t)
+
+        print("Latents shape:", latents.shape)        # Expecting [b, m, c, h, w]
+        print("Noise shape (before scheduler.add_noise):", noise.shape)
+        print("Pano_latent shape:", pano_latent.shape)
+
         t = t[:, None].repeat(1, m)
 
         denoise, pano_denoise = self.mv_base_model(

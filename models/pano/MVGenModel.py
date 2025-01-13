@@ -38,6 +38,10 @@ class MultiViewBaseModel(nn.Module):
     def forward(self, latents, pano_latent, timestep, prompt_embd, pano_prompt_embd, cameras,
                 pers_layout_cond=None, pano_layout_cond=None):
         # bs*m, 4, 64, 64
+        print("Inside MVBaseModel:")
+        print("noise_z shape:", noise_z.shape)
+        print("pano_noise_z shape:", pano_noise_z.shape)
+        print("t shape:", t.shape)
         if latents is not None:
             b, m, c, h, w = latents.shape
             hidden_states = rearrange(latents, 'b m c h w -> (b m) c h w')

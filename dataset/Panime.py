@@ -105,30 +105,29 @@ class PanimeDataset(PanoDataset):
         else:
             data['pano_id'] = f"{scene_id}_{view_id}"
 
-        # Construct paths
+        # Add pano_path directly from JSON (your dataset already includes it)
         data['pano_path'] = os.path.join(self.data_dir, data.get('pano_path', ''))
-        data['pano_prompt_path'] = os.path.join(self.data_dir, data.get('pano_prompt_path', ''))
 
-        # Load prompts (ensure structure consistency)
-        prompt = []
-        for i in range(8):  # One prompt per 45 degrees
-            degree = i * 45
-            prompt_path = os.path.join(self.data_dir, scene_id, 'blip3', f"{view_id}_{degree}.txt")
-            prompt.append(self.load_prompt(prompt_path))
-        data['prompt'] = prompt
+        # Use `pano_prompt` directly from JSON
+        data['pano_prompt'] = data.get('pano_prompt', '')
 
-        # Camera sampling
+        # Use prompts directly from JSON
+        data['prompt'] = data.get('prompts', [''] * 8)  # Ensure 8 prompts (fallback if missing)
+
+        # Camera data extraction
         cam_data = data.get('cameras_data', {})
         FoV = np.array(cam_data.get('FoV', [90.0] * 8), dtype=np.float32)
         theta = np.array(cam_data.get('theta', [i * 45.0 for i in range(8)]), dtype=np.float32)
         phi = np.array(cam_data.get('phi', [0.0] * 8), dtype=np.float32)
 
+        # Generate K and R matrices for each camera view
         Ks, Rs = [], []
         for f, t, p in zip(FoV, theta, phi):
             K, R = get_K_R(f, t, p, self.config['pers_resolution'], self.config['pers_resolution'])
             Ks.append(K)
             Rs.append(R)
 
+        # Build camera dictionary in the desired output format
         data['cameras'] = {
             'height': np.full_like(FoV, self.config['pers_resolution'], dtype=int),
             'width': np.full_like(FoV, self.config['pers_resolution'], dtype=int),
@@ -139,15 +138,9 @@ class PanimeDataset(PanoDataset):
             'R': np.stack(Rs).astype(np.float32),
         }
 
-        # Add additional properties like layout or pano_pred_path if necessary
-        if self.result_dir:
+        # Include path to predicted panorama if in result mode
+        if self.result_dir is not None:
             data['pano_pred_path'] = os.path.join(self.result_dir, data['pano_id'], 'pano.png')
-
-        # Ensure compatibility with layout_cond_path
-        if self.config.get('layout_cond_type'):
-            data['layout_cond_path'] = os.path.join(
-                self.data_dir, scene_id, 'layout', view_id, f"layout_{self.config['layout_cond_type']}.png"
-            )
 
         return data
 

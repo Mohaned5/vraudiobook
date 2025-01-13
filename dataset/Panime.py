@@ -58,7 +58,7 @@ class PanimeDataset(PanoDataset):
 
                 # Define paths
                 pano_path = os.path.join(self.data_dir, sample["pano"])
-                prompt_name_dir = os.path.dirname(sample["pano"])  # Extracts the directory part of the pano path
+                prompt_name_dir = os.path.dirname(os.path.dirname(sample["pano"]))  # Extracts the directory part of the pano path
                 images_paths = [os.path.join(self.data_dir, prompt_name_dir, img) for img in sample["images"]]
 
 

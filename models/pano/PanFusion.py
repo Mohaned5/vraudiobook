@@ -94,13 +94,15 @@ class PanFusion(PanoGenerator):
         pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
         pano_noise, noise = self.init_noise(
             b, *pano_latent.shape[-2:], h, w, batch['cameras'], device)
+        
+        print("Latents shape:", latents.shape)        # Expecting [b, m, c, h, w]
 
         noise_z = self.scheduler.add_noise(latents, noise, t)
+        print("noise_z shape after scheduler.add_noise:", noise_z.shape)
+
         pano_noise_z = self.scheduler.add_noise(pano_latent, pano_noise, t)
 
-        print("Latents shape:", latents.shape)        # Expecting [b, m, c, h, w]
-        print("Noise shape (before scheduler.add_noise):", noise.shape)
-        print("Pano_latent shape:", pano_latent.shape)
+        print("pano_noise_z shape after scheduler.add_noise:", pano_noise_z.shape)
 
         t = t[:, None].repeat(1, m)
 

@@ -38,10 +38,18 @@ class MultiViewBaseModel(nn.Module):
     def forward(self, latents, pano_latent, timestep, prompt_embd, pano_prompt_embd, cameras,
                 pers_layout_cond=None, pano_layout_cond=None):
         # bs*m, 4, 64, 64
-        print("Inside MVBaseModel:")
+        print("Inside MVBaseModel.forward:")
+        print("latents shape:", latents.shape)
+        print("pano_latent shape:", pano_latent.shape)
+        print("timestep shape:", timestep.shape)
+        print("prompt_embd shape:", prompt_embd.shape)
+        print("pano_prompt_embd shape:", pano_prompt_embd.shape)
+        # If you're computing noise_z/pano_noise_z from these inputs, log after that computation.
+        # For example, if noise_z is computed by adding noise via a scheduler or some function:
+        noise_z = latents  # or the actual computation if any
+        pano_noise_z = pano_latent  # or adjust based on actual computation
         print("noise_z shape:", noise_z.shape)
         print("pano_noise_z shape:", pano_noise_z.shape)
-        print("t shape:", t.shape)
         if latents is not None:
             b, m, c, h, w = latents.shape
             hidden_states = rearrange(latents, 'b m c h w -> (b m) c h w')

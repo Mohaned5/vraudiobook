@@ -109,7 +109,7 @@ class PanimeDataset(PanoDataset):
             data['pano_id'] = f"{scene_id}_{view_id}"
 
         # Add pano_path directly from JSON (your dataset already includes it)
-        data['pano_path'] = os.path.join(self.data_dir, data.get('pano_path', ''))
+        data['pano_path'] = data.get('pano_path', '')
         if not os.path.exists(data['pano_path']):
             raise ValueError(f"pano_path does not exist: {data['pano_path']}")
         # Use `pano_prompt` directly from JSON

@@ -97,64 +97,57 @@ class PanimeDataset(PanoDataset):
 
     def get_data(self, idx):
         data = self.data[idx].copy()
+        scene_id, view_id = data.get('scene_id', ''), data.get('view_id', '')
 
-        # 1) If in predict mode with repeated sampling
-        if self.mode == 'predict':
-            scene_id = data['scene_id']
-            view_id = data['view_id']
-
-            # Build a unique pano_id just like Matterport
-            data['pano_id'] = f"{scene_id}_{view_id}"
-            data['pano_prompt'] = data.get('pano_prompt', "")
-
+        # Construct pano_id for compatibility
+        if self.mode == 'predict' and self.config['repeat_predict'] > 1:
+            data['pano_id'] = f"{scene_id}_{view_id}_{data['repeat_id']:06d}"
         else:
-            # 2) Possibly apply unconditioned training ratio
-            if self.mode == 'train' and self.result_dir is None and random.random() < self.config['uncond_ratio']:
-                data['pano_prompt'] = ""
-                data['prompts'] = [""] * len(data['prompts'])
+            data['pano_id'] = f"{scene_id}_{view_id}"
 
-            # 3) Build 'cameras' dict in the format PanFusion expects
-            cam_data = data['cameras_data']
-            FoV = np.array(cam_data['FoV'][0], dtype=np.float32)
-            theta = np.array(cam_data['theta'][0], dtype=np.float32)
-            phi = np.array(cam_data['phi'][0], dtype=np.float32)
+        # Construct paths
+        data['pano_path'] = os.path.join(self.data_dir, data.get('pano_path', ''))
+        data['pano_prompt_path'] = os.path.join(self.data_dir, data.get('pano_prompt_path', ''))
 
-            cameras = {
-                # If you want each perspective to be 256×256, set these to pers_resolution
-                # or keep them as you like. Here we hard-code to 512 as an example.
-                'height': 256,
-                'width': 256,
-                'FoV': FoV,
-                'theta': theta,
-                'phi': phi,
-            }
+        # Load prompts (ensure structure consistency)
+        prompt = []
+        for i in range(8):  # One prompt per 45 degrees
+            degree = i * 45
+            prompt_path = os.path.join(self.data_dir, scene_id, 'blip3', f"{view_id}_{degree}.txt")
+            prompt.append(self.load_prompt(prompt_path))
+        data['prompt'] = prompt
 
-            # Compute intrinsics & extrinsics
-            Ks, Rs = [], []
-            for f, t, p in zip(FoV, theta, phi):
-                K, R = get_K_R(
-                    f, t, p,
-                    self.config['pers_resolution'],
-                    self.config['pers_resolution']
-                )
-                Ks.append(K)
-                Rs.append(R)
-            cameras['K'] = np.stack(Ks).astype(np.float32)
-            cameras['R'] = np.stack(Rs).astype(np.float32)
+        # Camera sampling
+        cam_data = data.get('cameras_data', {})
+        FoV = np.array(cam_data.get('FoV', [90.0] * 8), dtype=np.float32)
+        theta = np.array(cam_data.get('theta', [i * 45.0 for i in range(8)]), dtype=np.float32)
+        phi = np.array(cam_data.get('phi', [0.0] * 8), dtype=np.float32)
 
-            # 4) Save everything the pipeline expects
-            data['prompt'] = data['prompts']
-            data['cameras'] = cameras
-            data['height'] = self.config['pano_height']
-            data['width'] = self.config['pano_height'] * 2  # typical equirect (2:1 ratio)
+        Ks, Rs = [], []
+        for f, t, p in zip(FoV, theta, phi):
+            K, R = get_K_R(f, t, p, self.config['pers_resolution'], self.config['pers_resolution'])
+            Ks.append(K)
+            Rs.append(R)
 
-        # # 5) Provide the path for the pano
-        # if self.mode != 'predict':
-        #     data['pano_path'] = data['pano_path']
+        data['cameras'] = {
+            'height': np.full_like(FoV, self.config['pers_resolution'], dtype=int),
+            'width': np.full_like(FoV, self.config['pers_resolution'], dtype=int),
+            'FoV': FoV,
+            'theta': theta,
+            'phi': phi,
+            'K': np.stack(Ks).astype(np.float32),
+            'R': np.stack(Rs).astype(np.float32),
+        }
 
-        # 6) If there's a results directory, set path for predicted pano
-        if self.result_dir is not None:
+        # Add additional properties like layout or pano_pred_path if necessary
+        if self.result_dir:
             data['pano_pred_path'] = os.path.join(self.result_dir, data['pano_id'], 'pano.png')
+
+        # Ensure compatibility with layout_cond_path
+        if self.config.get('layout_cond_type'):
+            data['layout_cond_path'] = os.path.join(
+                self.data_dir, scene_id, 'layout', view_id, f"layout_{self.config['layout_cond_type']}.png"
+            )
 
         return data
 

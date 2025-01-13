@@ -65,9 +65,9 @@ class PanimeDataset(PanoDataset):
                     print(f"Skipping entry {pano_id}: pano file missing at {pano_path}")
                     continue
 
-                # if not all(os.path.exists(img_path) for img_path in images_paths):
-                #     print(f"Skipping entry {pano_id}: one or more images missing.")
-                #     continue
+                if not all(os.path.exists(img_path) for img_path in images_paths):
+                    print(f"Skipping entry {pano_id}: one or more images missing.")
+                    continue
 
                 # Add valid entries
                 entry = {
@@ -107,9 +107,7 @@ class PanimeDataset(PanoDataset):
 
         # Add pano_path directly from JSON (your dataset already includes it)
         data['pano_path'] = os.path.join(self.data_dir, data.get('pano_path', ''))
-        if not os.path.exists(data['pano_path']):
-            print(f"WARNING: Pano image missing for {data['pano_id']} at {data['pano_path']}. Skipping entry.")
-            return None
+    
         # Use `pano_prompt` directly from JSON
         data['pano_prompt'] = data.get('pano_prompt', '')
 

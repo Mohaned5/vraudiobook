@@ -182,13 +182,11 @@ class PanimeDataModule(PanoDataModule):
         if stage in ('fit', None):
             self.train_dataset = self.dataset_cls(self.hparams, mode='train')
 
-        # # Commenting out validation setup
-        # if stage in ('fit', 'validate', None):
-        #     self.val_dataset = self.dataset_cls(self.hparams, mode='val')
+        if stage in ('fit', 'validate', None):
+            self.val_dataset = self.dataset_cls(self.hparams, mode='val')
 
-        # # Commenting out test setup
-        # if stage in ('test', None):
-        #     self.test_dataset = self.dataset_cls(self.hparams, mode='test')
+        if stage in ('test', None):
+            self.test_dataset = self.dataset_cls(self.hparams, mode='test')
 
         # Predict dataset (optional)
         if stage in ('predict', None):
@@ -203,24 +201,23 @@ class PanimeDataModule(PanoDataModule):
             drop_last=True
         )
 
-    # Commenting out val_dataloader and test_dataloader
-    # def val_dataloader(self):
-    #     return torch.utils.data.DataLoader(
-    #         self.val_dataset,
-    #         batch_size=self.hparams.batch_size,
-    #         shuffle=False,
-    #         num_workers=self.hparams.num_workers,
-    #         drop_last=False
-    #     )
+    def val_dataloader(self):
+        return torch.utils.data.DataLoader(
+            self.val_dataset,
+            batch_size=self.hparams.batch_size,
+            shuffle=False,
+            num_workers=self.hparams.num_workers,
+            drop_last=False
+        )
 
-    # def test_dataloader(self):
-    #     return torch.utils.data.DataLoader(
-    #         self.test_dataset,
-    #         batch_size=self.hparams.batch_size,
-    #         shuffle=False,
-    #         num_workers=self.hparams.num_workers,
-    #         drop_last=False
-    #     )
+    def test_dataloader(self):
+        return torch.utils.data.DataLoader(
+            self.test_dataset,
+            batch_size=self.hparams.batch_size,
+            shuffle=False,
+            num_workers=self.hparams.num_workers,
+            drop_last=False
+        )
 
     def predict_dataloader(self):
         return torch.utils.data.DataLoader(

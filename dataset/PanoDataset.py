@@ -245,7 +245,7 @@ class PanoDataModule(L.LightningDataModule):
 
         if stage in ('fit', 'validate', None):
             self.val_dataset = self.dataset_cls(self.hparams, mode='val')
-
+    
         # if stage in ('test', None):
         #     self.test_dataset = self.dataset_cls(self.hparams, mode='test')
 

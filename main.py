@@ -63,7 +63,7 @@ def cli_main():
             'strategy': 'ddp',
             'log_every_n_steps': 10,
             'num_sanity_val_steps': 0,
-            'limit_val_batches': 4,
+            'limit_val_batches': 20,
             'benchmark': True,
             'max_epochs': 10,
             'precision': 32,

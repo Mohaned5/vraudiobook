@@ -149,7 +149,9 @@ class PanFusion(PanoGenerator):
 
         curr_rot = 0
         for i, t in enumerate(timesteps):
-            timestep = torch.cat([t[None, None]]*m, dim=1)
+            # timestep = torch.cat([t[None, None]]*m, dim=1)
+            t_flat = t.reshape(-1)
+            t_cfg = torch.cat([t_flat, t_flat], dim=0)
 
             pano_latent, batch['cameras'] = self.rotate_latent(pano_latent, batch['cameras'])
             curr_rot += self.hparams.rot_diff
@@ -159,7 +161,7 @@ class PanFusion(PanoGenerator):
             else:
                 pano_layout_cond = None
             noise_pred, pano_noise_pred = self.forward_cls_free(
-                latents, pano_latent, timestep, pers_prompt_embd, pano_prompt_embd, batch, pano_layout_cond)
+                latents, pano_latent, t_cfg, pers_prompt_embd, pano_prompt_embd, batch, pano_layout_cond)
 
             latents = self.scheduler.step(
                 noise_pred, t, latents).prev_sample

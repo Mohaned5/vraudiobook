@@ -129,8 +129,8 @@ class PanFusion(PanoGenerator):
         h, w = batch['cameras']['height'][0, 0].item(), batch['cameras']['width'][0, 0].item()
         print("batch['height']:", batch["height"], batch["height"].shape)
 
-        h_int = int(batch['height'].item())  # or batch['height'][0].item(), if needed
-        w_int = int(batch['width'].item())  # or batch['width'][0].item(), if needed
+        h_int = int(batch['height'][0].item())  # or batch['height'][0].item(), if needed
+        w_int = int(batch['width'][1].item())  # or batch['width'][0].item(), if needed
         device = self.device
 
         pano_latent, latents = self.init_noise(

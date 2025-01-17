@@ -201,7 +201,8 @@ class PanFusion(PanoGenerator):
         pano_pad = self.pad_pano(batch['pano'])
         pano_latent_pad = self.encode_image(pano_pad, self.vae)
         pano_latent = self.unpad_pano(pano_latent_pad, latent=True)
-        pano_latent = pano_latent.view(b*m, c, h, w)
+        p_b, p_m, p_c, p_h, p_w = pano_latent.shape
+        pano_latent = pano_latent.view(p_b * p_m, p_c, p_h, p_w)
         # 3) Sample a random t for each sample
         
 

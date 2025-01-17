@@ -122,8 +122,8 @@ class PanimeDataset(PanoDataset):
             cameras = {
                 # If you want each perspective to be 256×256, set these to pers_resolution
                 # or keep them as you like. Here we hard-code to 512 as an example.
-                'height': np.full_like(FoV, self.config['pers_resolution'], dtype=int),
-                'width': np.full_like(FoV, self.config['pers_resolution'], dtype=int),
+                'height': 256,
+                'width': 256,
                 'FoV': FoV,
                 'theta': theta,
                 'phi': phi,

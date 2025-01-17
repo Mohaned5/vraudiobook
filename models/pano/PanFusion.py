@@ -195,15 +195,15 @@ class PanFusion(PanoGenerator):
         
         # 1) Encode the ground-truth perspective images
         latents = self.encode_image(batch['images'], self.vae)  # shape: (b, m, c, h, w)
-
+        b, m, c, h, w = latents.shape
+        latents = latents.view(b*m, c, h, w)
         # 2) Encode the ground-truth pano
         pano_pad = self.pad_pano(batch['pano'])
         pano_latent_pad = self.encode_image(pano_pad, self.vae)
         pano_latent = self.unpad_pano(pano_latent_pad, latent=True)
         pano_latent = pano_latent.view(b*m, c, h, w)
         # 3) Sample a random t for each sample
-        b, m, c, h, w = latents.shape
-        latents = latents.view(b*m, c, h, w)
+        
 
         noise = torch.randn_like(latents)
         pano_noise = torch.randn_like(pano_latent)

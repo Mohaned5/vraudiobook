@@ -81,7 +81,7 @@ class PanimeDataset(PanoDataset):
                     "cameras_data": sample["cameras"]
                 }
                 new_data.append(entry)
-            new_data = new_data[:10]
+            new_data = new_data[:4]
 
             return new_data
 

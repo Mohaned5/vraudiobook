@@ -64,39 +64,62 @@ class PanFusion(PanoGenerator):
 
     def training_step(self, batch, batch_idx):
         device = batch['images'].device
+        
+        # 1) Encode perspective images: shape => (b, m, c, h, w)
         latents = self.encode_image(batch['images'], self.vae)
         b, m, c, h, w = latents.shape
 
+        # 2) Encode pano: shape => (b, m, c, h, w)
         pano_pad = self.pad_pano(batch['pano'])
         pano_latent_pad = self.encode_image(pano_pad, self.vae)
         pano_latent = self.unpad_pano(pano_latent_pad, latent=True)
-        # # test encoded pano latent
-        # pano_pad = ((pano_pad[0, 0] + 1) * 127.5).cpu().numpy().astype(np.uint8)
-        # pano = ((batch['pano'][0, 0] + 1) * 127.5).cpu().numpy().astype(np.uint8)
-        # pano_decode = self.decode_latent(pano_latent, self.vae)[0, 0]
 
-        t = torch.randint(0, self.scheduler.config.num_train_timesteps,
-                          (b,), device=latents.device).long()
+        # 3) Flatten (b, m, c, h, w) => (b*m, c, h, w)
+        latents = latents.view(b*m, c, h, w)
+        pano_latent = pano_latent.view(b*m, c, h, w)
+
+        # 4) Sample random time steps: shape => (b*m,)
+        t = torch.randint(
+            0, self.scheduler.config.num_train_timesteps,
+            (b*m,), device=device
+        ).long()
+
+        # 5) Get prompt embeddings (unchanged)
         pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
-        pano_noise, noise = self.init_noise(
-            b, *pano_latent.shape[-2:], h, w, batch['cameras'], device)
 
+        # 6) Initialize noise: also returns (b,m,c,h,w), then flatten
+        pano_noise, noise = self.init_noise(
+            b, pano_latent.shape[-2], pano_latent.shape[-1], h, w,
+            batch['cameras'], device
+        )
+        pano_noise = pano_noise.view(b*m, c, h, w)
+        noise = noise.view(b*m, c, h, w)
+
+        # 7) Add noise according to t
         noise_z = self.scheduler.add_noise(latents, noise, t)
         pano_noise_z = self.scheduler.add_noise(pano_latent, pano_noise, t)
-        t = t[:, None].repeat(1, m)
 
+        # 8) Forward pass through your model
         denoise, pano_denoise = self.mv_base_model(
-            noise_z, pano_noise_z, t, pers_prompt_embd, pano_prompt_embd, batch['cameras'],
-            batch.get('images_layout_cond'), batch.get('pano_layout_cond'))
+            noise_z, pano_noise_z, t,
+            pers_prompt_embd, pano_prompt_embd,
+            batch['cameras'],
+            batch.get('images_layout_cond'), 
+            batch.get('pano_layout_cond')
+        )
 
-        # eps mode
+        # 9) Compute MSE loss (eps mode)
         loss_pers = torch.nn.functional.mse_loss(denoise, noise)
         loss_pano = torch.nn.functional.mse_loss(pano_denoise, pano_noise)
         loss = loss_pers + loss_pano
+
+        # 10) Log metrics
         self.log('train/loss', loss, prog_bar=False)
         self.log('train/loss_pers', loss_pers, prog_bar=True)
         self.log('train/loss_pano', loss_pano, prog_bar=True)
+
         return loss
+
 
     @torch.no_grad()
     def forward_cls_free(self, latents, pano_latent, timestep, prompt_embd, pano_prompt_embd, batch, pano_layout_cond=None):
@@ -190,58 +213,70 @@ class PanFusion(PanoGenerator):
 
     @torch.no_grad()
     def validation_step(self, batch, batch_idx):
-        # Replicate relevant logic from training
         device = batch['images'].device
         
-        # 1) Encode the ground-truth perspective images
-        latents = self.encode_image(batch['images'], self.vae)  # shape: (b, m, c, h, w)
+        # 1) Encode ground-truth perspective images: shape => (b, m, c, h, w)
+        latents = self.encode_image(batch['images'], self.vae)
+        b, m, c, h, w = latents.shape
 
-        # 2) Encode the ground-truth pano
+        # 2) Encode ground-truth pano: shape => (b, m, c, h, w)
         pano_pad = self.pad_pano(batch['pano'])
         pano_latent_pad = self.encode_image(pano_pad, self.vae)
         pano_latent = self.unpad_pano(pano_latent_pad, latent=True)
 
-        # 3) Sample a random t for each sample
-        b, m, c, h, w = latents.shape
-        t = torch.randint(0, self.scheduler.config.num_train_timesteps,
-                        (b,), device=device).long()
+        # 3) Flatten (b, m, c, h, w) => (b*m, c, h, w)
+        latents = latents.view(b*m, c, h, w)
+        pano_latent = pano_latent.view(b*m, c, h, w)
 
-        # 4) Create prompts
+        # 4) Sample random time steps: shape => (b*m,)
+        t = torch.randint(
+            0, self.scheduler.config.num_train_timesteps,
+            (b*m,), device=device
+        ).long()
+
+        # 5) Create prompt embeddings
         pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
+
+        # 6) Initialize noise and flatten
         pano_noise, noise = self.init_noise(
             b, pano_latent.shape[-2], pano_latent.shape[-1], h, w,
             batch['cameras'], device
         )
+        pano_noise = pano_noise.view(b*m, c, h, w)
+        noise = noise.view(b*m, c, h, w)
 
-        # 5) Add noise
+        # 7) Add noise according to t
         noise_z = self.scheduler.add_noise(latents, noise, t)
         pano_noise_z = self.scheduler.add_noise(pano_latent, pano_noise, t)
-        t = t[:, None].repeat(1, m)  # shape: (b, m)
 
-        # 6) Forward pass
+        # 8) Forward pass
         denoise, pano_denoise = self.mv_base_model(
-            noise_z, pano_noise_z, t, pers_prompt_embd, pano_prompt_embd,
-            batch['cameras'], batch.get('images_layout_cond'), batch.get('pano_layout_cond')
+            noise_z, pano_noise_z, t,
+            pers_prompt_embd, pano_prompt_embd,
+            batch['cameras'],
+            batch.get('images_layout_cond'),
+            batch.get('pano_layout_cond')
         )
 
-        # 7) Compute MSE losses
+        # 9) Compute MSE losses
         loss_pers = torch.nn.functional.mse_loss(denoise, noise)
         loss_pano = torch.nn.functional.mse_loss(pano_denoise, pano_noise)
         val_loss = loss_pers + loss_pano
 
-        # 8) Log numeric val losses
+        # 10) Log numeric val losses
         self.log('val/loss_pers', loss_pers, prog_bar=True)
         self.log('val/loss_pano', loss_pano, prog_bar=True)
         self.log('val/loss', val_loss, prog_bar=True)
 
-        # 9) Also log images if you want
+        # 11) Optionally run inference to get predictions, log images
         images_pred, pano_pred = self.inference(batch)
         self.log_val_image(
-            images_pred, batch['images'], pano_pred, batch['pano'], batch['pano_prompt'],
-            batch.get('images_layout_cond'), batch.get('pano_layout_cond')
+            images_pred, batch['images'], pano_pred, batch['pano'],
+            batch['pano_prompt'],
+            batch.get('images_layout_cond'),
+            batch.get('pano_layout_cond')
         )
 
-        # Return the main val loss
         return val_loss
 
 

@@ -128,10 +128,13 @@ class PanFusion(PanoGenerator):
         bs, m = batch['cameras']['height'].shape[:2]
         m = 20
         h, w = batch['cameras']['height'][0, 0].item(), batch['cameras']['width'][0, 0].item()
+        equi_h = batch['height'][0].item() // 8
+        equi_w = batch['width'][0].item() // 8
+
         device = self.device
 
         pano_latent, latents = self.init_noise(
-            bs, batch['height']//8, batch['width']//8, h//8, h//8, batch['cameras'], device)
+            bs, equi_h//8, equi_w//8, h//8, h//8, batch['cameras'], device)
 
         pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
         prompt_null = self.encode_text('')[:, None]
@@ -199,6 +202,7 @@ class PanFusion(PanoGenerator):
         # 3) Sample a random t for each sample
         b, m, c, h, w = latents.shape
         m = 20
+        
         t = torch.randint(0, self.scheduler.config.num_train_timesteps,
                         (b,), device=device).long()
 

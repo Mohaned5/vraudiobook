@@ -40,6 +40,8 @@ class PanimeDataset(PanoDataset):
                     "view_id": view_id,
                     "pano_prompt": pano_prompt
                 })
+            
+            new_data = new_data[:10]
             return new_data
 
         else:

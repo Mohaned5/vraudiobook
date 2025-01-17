@@ -200,28 +200,25 @@ class PanFusion(PanoGenerator):
         pano_pad = self.pad_pano(batch['pano'])
         pano_latent_pad = self.encode_image(pano_pad, self.vae)
         pano_latent = self.unpad_pano(pano_latent_pad, latent=True)
-
+        pano_latent = pano_latent.view(b*m, c, h, w)
         # 3) Sample a random t for each sample
         b, m, c, h, w = latents.shape
+        latents = latents.view(b*m, c, h, w)
+
+        noise = torch.randn_like(latents)
+        pano_noise = torch.randn_like(pano_latent)
+
         t = torch.randint(
             0, self.scheduler.config.num_train_timesteps,
-            (b * m,), device=device
+            (b*m,), device=latents.device
         ).long()
 
         # 4) Create prompts
         pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
-        pano_noise, noise = self.init_noise(
-            b, pano_latent.shape[-2], pano_latent.shape[-1], h, w,
-            batch['cameras'], device
-        )
-
-        latents = rearrange(latents, 'b m c h w -> (b m) c h w')
-        pano_latent = rearrange(pano_latent, 'b m c h w -> (b m) c h w')
 
         # 5) Add noise
         noise_z = self.scheduler.add_noise(latents, noise, t)
         pano_noise_z = self.scheduler.add_noise(pano_latent, pano_noise, t)
-        # t = t[:, None].repeat(1, m)  # shape: (b, m)
 
         # 6) Forward pass
         denoise, pano_denoise = self.mv_base_model(

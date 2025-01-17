@@ -208,11 +208,18 @@ class PanFusion(PanoGenerator):
 
         noise = torch.randn_like(latents)
         pano_noise = torch.randn_like(pano_latent)
-
+        b = pano_latent.shape[0]
         t = torch.randint(
             0, self.scheduler.config.num_train_timesteps,
             (b*m,), device=latents.device
         ).long()
+
+        t_pano = torch.randint(
+            0, self.scheduler.config.num_train_timesteps,
+            (b,),  # shape [2], not [40]
+            device=pano_latent.device
+        ).long()
+
 
         # 4) Create prompts
         pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
@@ -222,7 +229,7 @@ class PanFusion(PanoGenerator):
         print("pano_noise:", pano_noise.shape)
         print("t:", t.shape)
         noise_z = self.scheduler.add_noise(latents, noise, t)
-        pano_noise_z = self.scheduler.add_noise(pano_latent, pano_noise, t)
+        pano_noise_z = self.scheduler.add_noise(pano_latent, pano_noise, t_pano)
 
         # 6) Forward pass
         denoise, pano_denoise = self.mv_base_model(

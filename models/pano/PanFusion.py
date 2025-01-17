@@ -218,6 +218,9 @@ class PanFusion(PanoGenerator):
         pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
 
         # 5) Add noise
+        print("pano_latent:", pano_latent.shape)
+        print("pano_noise:", pano_noise.shape)
+        print("t:", t.shape)
         noise_z = self.scheduler.add_noise(latents, noise, t)
         pano_noise_z = self.scheduler.add_noise(pano_latent, pano_noise, t)
 

@@ -126,6 +126,7 @@ class PanFusion(PanoGenerator):
     @torch.no_grad()
     def inference(self, batch):
         bs, m = batch['cameras']['height'].shape[:2]
+        m = 20
         h, w = batch['cameras']['height'][0, 0].item(), batch['cameras']['width'][0, 0].item()
         device = self.device
 
@@ -197,6 +198,7 @@ class PanFusion(PanoGenerator):
 
         # 3) Sample a random t for each sample
         b, m, c, h, w = latents.shape
+        m = 20
         t = torch.randint(0, self.scheduler.config.num_train_timesteps,
                         (b,), device=device).long()
 

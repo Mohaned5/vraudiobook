@@ -81,6 +81,8 @@ class PanimeDataset(PanoDataset):
                     "cameras_data": sample["cameras"]
                 }
                 new_data.append(entry)
+            new_data = new_data[:10]
+
             return new_data
 
     def scan_results(self, result_dir):

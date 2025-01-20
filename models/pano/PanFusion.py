@@ -23,24 +23,17 @@ class PanFusion(PanoGenerator):
         super().__init__(**kwargs)
         self.save_hyperparameters()
 
-        # --- Initialize LPIPS ---
-        self.lpips_model = lpips.LPIPS(net='alex').to(self.device)  # Ensure it's on the correct device
-        self.lpips_model.eval()  # Disable gradients for LPIPS
-        
-        # --- Initialize FID Metric ---
+       # in your __init__:
+        self.lpips_model = lpips.LPIPS(net='alex')
+        # Mark them as eval and not trainable
+        self.lpips_model.eval()
+        for param in self.lpips_model.parameters():
+            param.requires_grad = False
+
         self.fid_metric = FrechetInceptionDistance(feature=2048, normalize=True)
-        
-        # --- Define FID Transform ---
-        self.fid_transform = transforms.Compose([
-            transforms.Resize((299, 299)),  # Resize to Inception's expected input size
-            transforms.ToTensor(),          # Convert PIL Image to Tensor in [0, 1]
-        ])
-        
-        # --- Helper to Convert Images from [-1, 1] to [0, 1] ---
-        self.to01 = lambda img: (img + 1) / 2
-        
-        # --- Container to Accumulate LPIPS Scores ---
-        self._val_lpips = []
+        for param in self.fid_metric.parameters():
+            param.requires_grad = False
+
         
 
     def instantiate_model(self):

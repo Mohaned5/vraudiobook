@@ -15,47 +15,6 @@ transform = transforms.Compose([
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))  # Normalize to [-1, 1]
 ])
 
-def download_wandb_images(entity, project, run_id, path_prefix, local_dir, timeout=29):
-    """Download images from WandB for a specific path prefix and organize into folders."""
-    api = wandb.Api(timeout=timeout)
-    run_path = f"{entity}/{project}/{run_id}"
-    run = api.run(run_path)  # Use full run path
-
-    pred_dir = os.path.join(local_dir, "pred")
-    gt_dir = os.path.join(local_dir, "gt")
-    os.makedirs(pred_dir, exist_ok=True)
-    os.makedirs(gt_dir, exist_ok=True)
-
-    steps = []
-
-    for file in tqdm(run.files(), desc="Processing WandB files"):
-        if file.name.startswith(path_prefix):
-            local_path = os.path.join(local_dir, file.name)
-
-            if "pano_pred" in file.name:
-                step = file.name.split('_')[2]  # Extract step
-                dest_path = os.path.join(pred_dir, f"{step}.jpg")
-                if os.path.exists(dest_path):
-                    print(f"Skipping already downloaded file: {dest_path}")
-                    steps.append(int(step))
-                    continue
-            elif "pano_gt" in file.name:
-                step = file.name.split('_')[2]  # Extract step
-                dest_path = os.path.join(gt_dir, f"{step}.jpg")
-                if os.path.exists(dest_path):
-                    print(f"Skipping already downloaded file: {dest_path}")
-                    steps.append(int(step))
-                    continue
-            else:
-                continue
-
-            print(f"Downloading file: {file.name}")
-            file.download(replace=True, root=local_dir)
-            os.rename(local_path, dest_path)
-            steps.append(int(step))  # Store the step number
-
-    return sorted(set(steps))
-
 def get_epochs_from_steps(steps, images_per_epoch=20):
     """Group steps into epochs based on jumps in step numbers."""
     epochs = []

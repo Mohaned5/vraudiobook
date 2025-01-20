@@ -246,8 +246,8 @@ class PanoDataModule(L.LightningDataModule):
         if stage in ('fit', 'validate', None):
             self.val_dataset = self.dataset_cls(self.hparams, mode='val')
     
-        # if stage in ('test', None):
-        #     self.test_dataset = self.dataset_cls(self.hparams, mode='test')
+        if stage in ('test', None):
+            self.test_dataset = self.dataset_cls(self.hparams, mode='test')
 
         if stage in ('predict', None):
             self.predict_dataset = self.dataset_cls(self.hparams, mode='predict')
@@ -262,10 +262,10 @@ class PanoDataModule(L.LightningDataModule):
             self.val_dataset, batch_size=self.hparams.batch_size,
             shuffle=False, num_workers=self.hparams.num_workers, drop_last=False)
 
-    # def test_dataloader(self):
-    #     return torch.utils.data.DataLoader(
-    #         self.test_dataset, batch_size=self.hparams.batch_size,
-    #         shuffle=False, num_workers=self.hparams.num_workers, drop_last=False)
+    def test_dataloader(self):
+        return torch.utils.data.DataLoader(
+            self.test_dataset, batch_size=self.hparams.batch_size,
+            shuffle=False, num_workers=self.hparams.num_workers, drop_last=False)
 
     def predict_dataloader(self):
         return torch.utils.data.DataLoader(

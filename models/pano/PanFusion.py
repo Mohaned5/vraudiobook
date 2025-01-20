@@ -7,7 +7,9 @@ from PIL import Image
 from external.Perspective_and_Equirectangular import e2p
 from einops import rearrange
 from lightning.pytorch.utilities import rank_zero_only
-
+import lpips
+from torchvision import transforms
+from torchmetrics.image.fid import FrechetInceptionDistance
 
 class PanFusion(PanoGenerator):
     def __init__(
@@ -19,6 +21,22 @@ class PanFusion(PanoGenerator):
             ):
         super().__init__(**kwargs)
         self.save_hyperparameters()
+
+        self.lpips_model = lpips.LPIPS(net='alex')
+        self.lpips_model.eval()
+        
+        # Initialize FID metric with default parameters (expects images resized to 299x299 in [0,1])
+        self.fid_metric = FrechetInceptionDistance(feature=2048, normalize=True)
+        self.fid_transform = transforms.Compose([
+            transforms.Resize((299, 299)),
+            transforms.ToTensor()  # assumes input image is a PIL image and produces [0, 1] tensor.
+        ])
+        # A helper to map images from [-1,1] to [0,1]
+        self.to01 = lambda img: (img + 1) / 2
+        
+        # Containers to accumulate batch-level LPIPS for an epoch.
+        self._val_lpips = []
+        
 
     def instantiate_model(self):
         pano_unet, cn = self.load_pano()
@@ -184,7 +202,6 @@ class PanFusion(PanoGenerator):
 
     @torch.no_grad()
     def validation_step(self, batch, batch_idx):
-        # Replicate relevant logic from training
         device = batch['images'].device
         
         # 1) Encode the ground-truth perspective images
@@ -198,13 +215,12 @@ class PanFusion(PanoGenerator):
         # 3) Sample a random t for each sample
         b, m, c, h, w = latents.shape
         t = torch.randint(0, self.scheduler.config.num_train_timesteps,
-                        (b,), device=device).long()
+                          (b,), device=device).long()
 
         # 4) Create prompts
         pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
         pano_noise, noise = self.init_noise(
-            b, pano_latent.shape[-2], pano_latent.shape[-1], h, w,
-            batch['cameras'], device
+            b, pano_latent.shape[-2], pano_latent.shape[-1], h, w, batch['cameras'], device
         )
 
         # 5) Add noise
@@ -235,8 +251,61 @@ class PanFusion(PanoGenerator):
             batch.get('images_layout_cond'), batch.get('pano_layout_cond')
         )
 
-        # Return the main val loss
+        # --- Now update the LPIPS and FID metrics ---
+        # For LPIPS we assume images_pred and batch['images'] are in [-1, 1]
+        # For FID, we need to convert to [0,1] and resize to 299x299.
+        lpips_scores = []
+        for i in range(b):
+            for j in range(m):
+                # Extract prediction and ground truth images (assumed to be tensors of shape (c, h, w))
+                pred_img = images_pred[i, j]  # assumed range [-1,1]
+                gt_img = batch['images'][i, j]  # assumed range [-1,1]
+                
+                # LPIPS: add batch dim and compute
+                pred_img_batch = pred_img.unsqueeze(0)
+                gt_img_batch = gt_img.unsqueeze(0)
+                lpips_val = self.lpips_model(pred_img_batch, gt_img_batch)
+                lpips_scores.append(lpips_val.item())
+
+                # FID: first map from [-1,1] to [0,1], convert tensor to PIL image, then apply fid_transform.
+                pred_img_01 = self.to01(pred_img).clamp(0, 1).cpu()
+                gt_img_01 = self.to01(gt_img).clamp(0, 1).cpu()
+                pred_pil = Image.fromarray((pred_img_01.permute(1, 2, 0).numpy() * 255).astype('uint8'))
+                gt_pil = Image.fromarray((gt_img_01.permute(1, 2, 0).numpy() * 255).astype('uint8'))
+                pred_img_resized = self.fid_transform(pred_pil)
+                gt_img_resized = self.fid_transform(gt_pil)
+                # Update FID metric. Note: The metric expects a batch dimension.
+                self.fid_metric.update(pred_img_resized.unsqueeze(0), real=False)
+                self.fid_metric.update(gt_img_resized.unsqueeze(0), real=True)
+
+        if lpips_scores:
+            avg_lpips_batch = sum(lpips_scores) / len(lpips_scores)
+            self._val_lpips.append(avg_lpips_batch)
+            self.log('val/lpips_batch', avg_lpips_batch, on_step=True, on_epoch=False)
+        else:
+            avg_lpips_batch = float('nan')
+
         return val_loss
+    
+    def validation_epoch_end(self, outputs):
+        # Aggregate LPIPS over all validation batches.
+        if self._val_lpips:
+            epoch_avg_lpips = sum(self._val_lpips) / len(self._val_lpips)
+        else:
+            epoch_avg_lpips = float('nan')
+        self.log('val/lpips_epoch', epoch_avg_lpips, prog_bar=True)
+
+        # Compute final FID for the epoch.
+        try:
+            epoch_fid = self.fid_metric.compute().item()
+        except Exception as e:
+            self.print(f"Error computing FID: {e}")
+            epoch_fid = float('nan')
+        self.log('val/fid_epoch', epoch_fid, prog_bar=True)
+
+        # Reset the accumulators for the next epoch.
+        self._val_lpips.clear()
+        self.fid_metric.reset()
 
 
     def inference_and_save(self, batch, output_dir, ext='png'):

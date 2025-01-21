@@ -315,10 +315,10 @@ class PanFusion(PanoGenerator):
         if lpips_scores:
             avg_lpips_batch = sum(lpips_scores) / len(lpips_scores)
             self._val_lpips.append(avg_lpips_batch)
-            self.log('val/lpips_batch', avg_lpips_batch, on_step=False, on_epoch=False)
+            self.log('val/lpips_batch', avg_lpips_batch, on_step=False, on_epoch=True)
         else:
             avg_lpips_batch = float('nan')
-            self.log('val/lpips_batch', avg_lpips_batch, on_step=False, on_epoch=False)
+            self.log('val/lpips_batch', avg_lpips_batch, on_step=False, on_epoch=True)
 
         # --- Optionally Return Validation Loss ---
         return val_loss

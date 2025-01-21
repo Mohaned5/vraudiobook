@@ -41,6 +41,8 @@ class PanFusion(PanoGenerator):
             T.ToTensor(),             
         ])
 
+        self._val_lpips = []
+
         
 
     def instantiate_model(self):

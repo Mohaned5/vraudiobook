@@ -53,11 +53,44 @@ class PanFusion(PanoGenerator):
             self.trainable_params.extend(self.mv_base_model.trainable_parameters)
 
     def init_noise(self, bs, equi_h, equi_w, pers_h, pers_w, cameras, device):
-        bs = int(bs)
-        equi_h = int(equi_h)
-        equi_w = int(equi_w)
-        pers_h = int(pers_h)
-        pers_w = int(pers_w)
+        # 1) Force b to be an int, just as a sanity check
+        b = int(b)  
+
+        # 2) If equi_h or equi_w are multi-element tensors, pick the first
+        #    dimension. This is a hack just to mimic "bs=1" behavior.
+        if isinstance(equi_h, torch.Tensor):
+            # If it's more than one element, pick the first
+            if equi_h.numel() > 1:
+                equi_h = equi_h[0].item()
+            else:
+                equi_h = equi_h.item()
+        else:
+            equi_h = int(equi_h)
+
+        if isinstance(equi_w, torch.Tensor):
+            if equi_w.numel() > 1:
+                equi_w = equi_w[0].item()
+            else:
+                equi_w = equi_w.item()
+        else:
+            equi_w = int(equi_w)
+
+        # Same idea for pers_h, pers_w if they can also be Tensors
+        if isinstance(pers_h, torch.Tensor):
+            if pers_h.numel() > 1:
+                pers_h = pers_h[0].item()
+            else:
+                pers_h = pers_h.item()
+        else:
+            pers_h = int(pers_h)
+
+        if isinstance(pers_w, torch.Tensor):
+            if pers_w.numel() > 1:
+                pers_w = pers_w[0].item()
+            else:
+                pers_w = pers_w.item()
+        else:
+            pers_w = int(pers_w)
         cameras = {k: rearrange(v, 'b m ... -> (b m) ...') for k, v in cameras.items()}
         m = len(cameras['FoV']) // bs
         pano_noise = torch.randn(

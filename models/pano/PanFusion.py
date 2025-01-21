@@ -320,6 +320,7 @@ class PanFusion(PanoGenerator):
             avg_lpips_batch = float('nan')
             self.log('val/lpips_batch', avg_lpips_batch, on_step=False, on_epoch=True)
 
+
         # --- Optionally Return Validation Loss ---
         return val_loss
 

@@ -53,6 +53,11 @@ class PanFusion(PanoGenerator):
             self.trainable_params.extend(self.mv_base_model.trainable_parameters)
 
     def init_noise(self, bs, equi_h, equi_w, pers_h, pers_w, cameras, device):
+        bs = int(bs)
+        equi_h = int(equi_h)
+        equi_w = int(equi_w)
+        pers_h = int(pers_h)
+        pers_w = int(pers_w)
         cameras = {k: rearrange(v, 'b m ... -> (b m) ...') for k, v in cameras.items()}
         m = len(cameras['FoV']) // bs
         pano_noise = torch.randn(
@@ -315,10 +320,10 @@ class PanFusion(PanoGenerator):
         if lpips_scores:
             avg_lpips_batch = sum(lpips_scores) / len(lpips_scores)
             self._val_lpips.append(avg_lpips_batch)
-            self.log('val/lpips_batch', avg_lpips_batch, on_step=False, on_epoch=True)
+            self.log('val/lpips_batch', avg_lpips_batch, on_step=False, on_epoch=True, sync_dist=True)
         else:
             avg_lpips_batch = float('nan')
-            self.log('val/lpips_batch', avg_lpips_batch, on_step=False, on_epoch=True)
+            self.log('val/lpips_batch', avg_lpips_batch, on_step=False, on_epoch=True, sync_dist=True)
 
 
         # --- Optionally Return Validation Loss ---

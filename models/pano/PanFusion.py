@@ -254,30 +254,40 @@ class PanFusion(PanoGenerator):
         for i in range(b):
             for j in range(m):
                 # Extract predicted and ground truth images (assumed in [-1, 1])
-                pred_img = images_pred[i, j]  # shape: (c, h, w)
-                gt_img = batch['images'][i, j]  # shape: (c, h, w)
+                pred_img = images_pred[i, j]  # shape: (C, H, W) or (H, W, C) as NumPy
+                gt_img = batch['images'][i, j]  # Torch tensor in (C, H, W), [-1, 1] typically
 
-                # --- Compute LPIPS ---
-                # LPIPS expects a 4D tensor (N, C, H, W)
-                lpips_val = self.lpips_model(pred_img.unsqueeze(0).to(device), gt_img.unsqueeze(0).to(device))
+                # 1) Convert pred_img from NumPy to Torch
+                pred_img_torch = torch.from_numpy(pred_img).float()
+
+                # If your tensor_to_image() gave you (H, W, C) instead of (C, H, W), do:
+                # pred_img_torch = pred_img_torch.permute(2, 0, 1)
+
+                pred_img_torch = pred_img_torch.to(device)
+
+                # 2) Also move ground-truth to the same device (and ensure float)
+                gt_img_torch = gt_img.to(device).float()
+
+                # 3) LPIPS expects a batch dimension
+                lpips_val = self.lpips_model(
+                    pred_img_torch.unsqueeze(0),   # shape: (1, C, H, W)
+                    gt_img_torch.unsqueeze(0)      # shape: (1, C, H, W)
+                )
                 lpips_scores.append(lpips_val.item())
 
                 # --- Prepare Images for FID ---
-                # Convert from [-1, 1] to [0, 1] and clamp
-                pred_img_01 = self.to01(pred_img).clamp(0, 1).cpu()
-                gt_img_01 = self.to01(gt_img).clamp(0, 1).cpu()
+                pred_img_01 = self.to01(pred_img_torch).clamp(0, 1).cpu()
+                gt_img_01 = self.to01(gt_img_torch).clamp(0, 1).cpu()
 
-                # Convert to PIL Images
                 pred_pil = transforms.ToPILImage()(pred_img_01)
-                gt_pil = transforms.ToPILImage()(gt_img_01)
+                gt_pil   = transforms.ToPILImage()(gt_img_01)
 
-                # Apply FID transform (resize and convert to tensor)
                 pred_img_resized = self.fid_transform(pred_pil)
-                gt_img_resized = self.fid_transform(gt_pil)
+                gt_img_resized   = self.fid_transform(gt_pil)
 
-                # Update FID metric (add batch dimension)
                 self.fid_metric.update(pred_img_resized.unsqueeze(0), real=False)
                 self.fid_metric.update(gt_img_resized.unsqueeze(0), real=True)
+
 
         # --- Log Batch-Level LPIPS ---
         if lpips_scores:

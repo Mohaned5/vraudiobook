@@ -198,6 +198,12 @@ class PanFusion(PanoGenerator):
 
         return images_pred, pano_pred
 
+    def to01(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Converts a tensor in [-1, 1] to [0, 1].
+        """
+        return (x + 1.) * 0.5
+
     @torch.no_grad()
     def validation_step(self, batch, batch_idx):
         device = batch['images'].device

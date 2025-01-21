@@ -10,6 +10,7 @@ from lightning.pytorch.utilities import rank_zero_only
 import lpips
 from torchvision import transforms
 from torchmetrics.image.fid import FrechetInceptionDistance
+import torchvision.transforms as T
 
 
 class PanFusion(PanoGenerator):
@@ -33,6 +34,12 @@ class PanFusion(PanoGenerator):
         self.fid_metric = FrechetInceptionDistance(feature=2048, normalize=True)
         for param in self.fid_metric.parameters():
             param.requires_grad = False
+        
+        self.fid_transform = T.Compose([
+            T.Resize(299),           
+            T.CenterCrop(299),
+            T.ToTensor(),             
+        ])
 
         
 

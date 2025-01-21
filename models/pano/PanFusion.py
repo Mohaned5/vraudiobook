@@ -271,6 +271,9 @@ class PanFusion(PanoGenerator):
                 pred_img_torch = pred_img_torch.to(device)
                 gt_img_torch   = gt_img.to(device).float()  # shape is presumably already (3, H, W)
 
+                print(f"[DEBUG] pred_img_torch.shape = {pred_img_torch.shape}")
+                print(f"[DEBUG] gt_img_torch.shape = {gt_img_torch.shape}")
+
                 # shape is now (3, H, W). LPIPS expects batch dimension => (1, 3, H, W)
                 lpips_val = self.lpips_model(
                     pred_img_torch.unsqueeze(0),  # => (1, 3, H, W)

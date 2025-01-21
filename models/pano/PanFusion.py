@@ -302,7 +302,9 @@ class PanFusion(PanoGenerator):
                 gt_pil   = transforms.ToPILImage()(gt_img_01)
 
                 pred_img_resized = self.fid_transform(pred_pil)
+                pred_img_resized = pred_img_resized.to(device) 
                 gt_img_resized   = self.fid_transform(gt_pil)
+                gt_img_resized = gt_img_resized.to(device)
 
                 # Update FID
                 self.fid_metric.update(pred_img_resized.unsqueeze(0), real=False)

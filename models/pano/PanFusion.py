@@ -251,33 +251,36 @@ class PanFusion(PanoGenerator):
 
         # --- Compute and Accumulate LPIPS and FID Metrics ---
         lpips_scores = []
+        # Example snippet in validation_step
+
         for i in range(b):
             for j in range(m):
-                # Extract predicted and ground truth images (assumed in [-1, 1])
-                pred_img = images_pred[i, j]  # shape: (C, H, W) or (H, W, C) as NumPy
-                gt_img = batch['images'][i, j]  # Torch tensor in (C, H, W), [-1, 1] typically
+                # pred_img is a NumPy array from your 'tensor_to_image()'
+                pred_img = images_pred[i, j]  # shape e.g. (256, 256, 3) if it's channels-last
+                gt_img   = batch['images'][i, j]  # Torch tensor with shape (3, 256, 256)
 
-                # 1) Convert pred_img from NumPy to Torch
+                # Convert pred_img (NumPy) to Torch
                 pred_img_torch = torch.from_numpy(pred_img).float()
 
-                # If your tensor_to_image() gave you (H, W, C) instead of (C, H, W), do:
-                # pred_img_torch = pred_img_torch.permute(2, 0, 1)
+                # -- Permute to (C, H, W) if needed --
+                # If your images come out as (H, W, C), do .permute(2, 0, 1):
+                if pred_img_torch.ndim == 3 and pred_img_torch.shape[-1] == 3:
+                    pred_img_torch = pred_img_torch.permute(2, 0, 1)
 
+                # Move to device
                 pred_img_torch = pred_img_torch.to(device)
+                gt_img_torch   = gt_img.to(device).float()  # shape is presumably already (3, H, W)
 
-                # 2) Also move ground-truth to the same device (and ensure float)
-                gt_img_torch = gt_img.to(device).float()
-
-                # 3) LPIPS expects a batch dimension
+                # shape is now (3, H, W). LPIPS expects batch dimension => (1, 3, H, W)
                 lpips_val = self.lpips_model(
-                    pred_img_torch.unsqueeze(0),   # shape: (1, C, H, W)
-                    gt_img_torch.unsqueeze(0)      # shape: (1, C, H, W)
+                    pred_img_torch.unsqueeze(0),  # => (1, 3, H, W)
+                    gt_img_torch.unsqueeze(0)     # => (1, 3, H, W)
                 )
                 lpips_scores.append(lpips_val.item())
 
-                # --- Prepare Images for FID ---
+                # FID steps below (already presumably channels-first):
                 pred_img_01 = self.to01(pred_img_torch).clamp(0, 1).cpu()
-                gt_img_01 = self.to01(gt_img_torch).clamp(0, 1).cpu()
+                gt_img_01   = self.to01(gt_img_torch).clamp(0, 1).cpu()
 
                 pred_pil = transforms.ToPILImage()(pred_img_01)
                 gt_pil   = transforms.ToPILImage()(gt_img_01)
@@ -285,8 +288,10 @@ class PanFusion(PanoGenerator):
                 pred_img_resized = self.fid_transform(pred_pil)
                 gt_img_resized   = self.fid_transform(gt_pil)
 
+                # Update FID
                 self.fid_metric.update(pred_img_resized.unsqueeze(0), real=False)
                 self.fid_metric.update(gt_img_resized.unsqueeze(0), real=True)
+
 
 
         # --- Log Batch-Level LPIPS ---

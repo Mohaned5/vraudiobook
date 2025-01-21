@@ -54,7 +54,7 @@ class PanFusion(PanoGenerator):
 
     def init_noise(self, bs, equi_h, equi_w, pers_h, pers_w, cameras, device):
         # 1) Force b to be an int, just as a sanity check
-        b = int(b)  
+        bs = int(bs)  
 
         # 2) If equi_h or equi_w are multi-element tensors, pick the first
         #    dimension. This is a hack just to mimic "bs=1" behavior.

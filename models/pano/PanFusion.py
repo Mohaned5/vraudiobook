@@ -107,23 +107,47 @@ class PanFusion(PanoGenerator):
         return pano_noise, noise
 
     def embed_prompt(self, batch, num_cameras):
-        if self.hparams.use_pers_prompt:
-            pers_prompt = self.get_pers_prompt(batch)
-            pers_prompt_embd = self.encode_text(pers_prompt)
-            pers_prompt_embd = rearrange(pers_prompt_embd, '(b m) l c -> b m l c', m=num_cameras)
-        else:
-            pers_prompt = ''
-            pers_prompt_embd = self.encode_text(pers_prompt)
-            pers_prompt_embd = pers_prompt_embd[:, None].repeat(1, num_cameras, 1, 1)
+        """
+        Returns two tensors, each of shape (b*m, L, c):
+        - pers_prompt_embd: perspective prompt embeddings
+        - pano_prompt_embd: pano prompt embeddings
 
+        where b = batch size, m = num_cameras, L = text sequence length, c = embedding dim.
+        """
+
+        b = batch['images'].shape[0]  # or however you get your current batch size
+
+        # --- 1) Perspective prompt ---
+        if self.hparams.use_pers_prompt:
+            pers_prompt = self.get_pers_prompt(batch)  
+            # e.g. a list of length b*m strings, or b strings repeated for each camera, etc.
+            pers_prompt_embd = self.encode_text(pers_prompt)
+            # If encode_text already returns (b*m, L, c), great. No rearrange needed.
+            # Otherwise, if it returns shape (b, m, L, c) you can do:
+            #   pers_prompt_embd = rearrange(pers_prompt_embd, 'b m l c -> (b m) l c')
+        else:
+            # Provide a blank prompt, shape (1, L, c)
+            pers_prompt_embd = self.encode_text("")
+            # Expand to (b*m, L, c) so it matches the shape needed.
+            pers_prompt_embd = pers_prompt_embd.expand(b * num_cameras, -1, -1)
+
+        # --- 2) Pano prompt ---
         if self.hparams.use_pano_prompt:
             pano_prompt = self.get_pano_prompt(batch)
+            # For example, if your get_pano_prompt returns b strings, shape => (b, L, c) after encode_text
+            pano_prompt_embd = self.encode_text(pano_prompt)  
+            # Now we want to replicate each prompt for `m` cameras => (b, m, L, c), then flatten:
+            pano_prompt_embd = pano_prompt_embd.unsqueeze(1)             # => (b, 1, L, c)
+            pano_prompt_embd = pano_prompt_embd.expand(-1, num_cameras, -1, -1)
+            pano_prompt_embd = rearrange(pano_prompt_embd, 'b m l c -> (b m) l c')  # => (b*m, L, c)
         else:
-            pano_prompt = ''
-        pano_prompt_embd = self.encode_text(pano_prompt)
-        pano_prompt_embd = pano_prompt_embd[:, None]
+            # Provide a blank prompt for the pano
+            pano_prompt_embd = self.encode_text("")
+            # Expand to (b*m, L, c) 
+            pano_prompt_embd = pano_prompt_embd.expand(b * num_cameras, -1, -1)
 
         return pers_prompt_embd, pano_prompt_embd
+
 
     def training_step(self, batch, batch_idx):
         device = batch['images'].device

@@ -320,16 +320,6 @@ class PanFusion(PanoGenerator):
             avg_lpips_batch = float('nan')
             self.log('val/lpips_batch', avg_lpips_batch, on_step=False, on_epoch=True, sync_dist=True)
 
-
-        if self.trainer and self.trainer.is_global_zero:
-            checkpoint_dir = "checkpoints_during_val"
-            os.makedirs(checkpoint_dir, exist_ok=True)
-            
-            checkpoint_path = os.path.join(
-                checkpoint_dir,
-                f"epoch_{self.current_epoch + 97}_valstep_{batch_idx}.ckpt"
-            )
-            self.trainer.save_checkpoint(checkpoint_path)
         # --- Optionally Return Validation Loss ---
         return val_loss
 
@@ -353,6 +343,17 @@ class PanFusion(PanoGenerator):
         # --- Reset Metrics for Next Epoch ---
         self._val_lpips.clear()
         self.fid_metric.reset()
+
+        if self.trainer and self.trainer.is_global_zero:
+            checkpoint_dir = "checkpoints_val_epoch"
+            os.makedirs(checkpoint_dir, exist_ok=True)
+
+            checkpoint_path = os.path.join(
+                checkpoint_dir,
+                f"epoch_{self.current_epoch}.ckpt"
+            )
+            self.trainer.save_checkpoint(checkpoint_path)
+            print(f"Saved checkpoint at end of validation epoch: {checkpoint_path}")
 
 
 

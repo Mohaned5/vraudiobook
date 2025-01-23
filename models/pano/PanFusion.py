@@ -321,6 +321,15 @@ class PanFusion(PanoGenerator):
             self.log('val/lpips_batch', avg_lpips_batch, on_step=False, on_epoch=True, sync_dist=True)
 
 
+        if self.trainer and self.trainer.is_global_zero:
+            checkpoint_dir = "checkpoints_during_val"
+            os.makedirs(checkpoint_dir, exist_ok=True)
+            
+            checkpoint_path = os.path.join(
+                checkpoint_dir,
+                f"epoch_{self.current_epoch + 97}_valstep_{batch_idx}.ckpt"
+            )
+            self.trainer.save_checkpoint(checkpoint_path)
         # --- Optionally Return Validation Loss ---
         return val_loss
 

@@ -114,6 +114,8 @@ class PanFusion(PanoGenerator):
             noise_z, pano_noise_z, t, pers_prompt_embd, pano_prompt_embd, batch['cameras'],
             batch.get('images_layout_cond'), batch.get('pano_layout_cond'))
 
+        print(f"Current learning rate: {self.trainer.optimizers[0].param_groups[0]['lr']}")
+
         # eps mode
         loss_pers = torch.nn.functional.mse_loss(denoise, noise)
         loss_pano = torch.nn.functional.mse_loss(pano_denoise, pano_noise)

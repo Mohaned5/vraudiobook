@@ -13,6 +13,7 @@ from abc import abstractmethod
 from utils.pano import Equirectangular, random_sample_camera, horizon_sample_camera, icosahedron_sample_camera
 from external.Perspective_and_Equirectangular import mp2e
 from .PanoDataset import PanoDataset, PanoDataModule, get_K_R
+from torch.utils.data import DataLoader, Subset
 
 
 class PanimeDataset(PanoDataset):
@@ -177,10 +178,34 @@ class PanimeDataModule(PanoDataModule):
         self.dataset_cls = PanimeDataset
 
     def setup(self, stage=None):
-
-        # Training dataset
         if stage in ('fit', None):
             self.train_dataset = self.dataset_cls(self.hparams, mode='train')
+
+            # -----------------------------
+            # 1) Create a stabilized subset
+            # -----------------------------
+            total_len = len(self.train_dataset)
+            subset_len = int(0.15 * total_len)  # 15% of train set for example
+
+            # Fix a random seed for reproducibility
+            g = torch.Generator()
+            g.manual_seed(1234)
+
+            # Shuffle all indices in a reproducible way
+            indices = torch.randperm(total_len, generator=g).tolist()
+            stabilized_indices = indices[:subset_len]
+
+            # Create the subset and store it
+            self.train_stabilized_subset = Subset(self.train_dataset, stabilized_indices)
+
+            # Create a dedicated DataLoader for it
+            self.train_stabilized_loader = DataLoader(
+                self.train_stabilized_subset,
+                batch_size=self.hparams.batch_size,
+                shuffle=False,  # No shuffle => consistent ordering
+                num_workers=self.hparams.num_workers,
+                drop_last=False
+            )
 
         if stage in ('fit', 'validate', None):
             self.val_dataset = self.dataset_cls(self.hparams, mode='val')

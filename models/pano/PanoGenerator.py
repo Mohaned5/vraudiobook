@@ -11,6 +11,7 @@ import copy
 from utils.pano import pad_pano, unpad_pano
 from ..modules.utils import WandbLightningModule
 from diffusers import ControlNetModel
+from torch.optim.lr_scheduler import LambdaLR
 
 
 class PanoBase(WandbLightningModule):
@@ -282,13 +283,26 @@ class PanoGenerator(PanoBase):
         for params, lr_scale in self.trainable_params:
             param_groups.append({"params": params, "lr": self.hparams.lr * lr_scale})
         optimizer = torch.optim.AdamW(param_groups)
+
+        steps_per_epoch = len(self.trainer.datamodule.train_dataloader())
+        warmup_steps = 10 * steps_per_epoch
+
+        def linear_warmup(step):
+            if step < warmup_steps:
+                return float(step) / float(max(1, warmup_steps))  # 0 -> 1 linearly
+            else:
+                return 1.0
+
+        scheduler = LambdaLR(optimizer, lr_lambda=linear_warmup)
+
         if self.hparams.layout_cond:
             return optimizer
         else:
             scheduler = {
-                'scheduler': CosineAnnealingLR(optimizer, T_max=self.trainer.max_epochs, eta_min=1e-7),
-                'interval': 'epoch',  # update the learning rate after each epoch
-                'name': 'cosine_annealing_lr',
+                'scheduler': scheduler,
+                'interval': 'step',  # update LR *every step*
+                'frequency': 1,
+                'name': 'linear_warmup'
             }
             return {'optimizer': optimizer, 'lr_scheduler': scheduler}
 

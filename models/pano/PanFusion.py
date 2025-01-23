@@ -122,6 +122,38 @@ class PanFusion(PanoGenerator):
         self.log('train/loss_pers', loss_pers, prog_bar=True)
         self.log('train/loss_pano', loss_pano, prog_bar=True)
         return loss
+    
+    def on_train_epoch_end(self):
+        # 1. Switch the model to eval mode (no grad, no dropout, etc.)
+        self.eval()
+
+        # 2. Fix a seed for random noise/timesteps, so every epoch sees the exact same noise
+        torch.manual_seed(9999)
+
+        total_loss = 0.0
+        count = 0
+
+        # 3. Grab the 'train_stabilized_loader' from the DataModule
+        stabilized_loader = self.trainer.datamodule.train_stabilized_loader
+
+        # 4. No-grad pass to evaluate the same subset each time
+        with torch.no_grad():
+            for batch_idx, batch in enumerate(stabilized_loader):
+                # Reuse your 'training_step' logic to calculate the diffusion MSE loss
+                loss = self.training_step(batch, batch_idx)
+
+                total_loss += loss.item()
+                count += 1
+
+        avg_stabilized_loss = total_loss / max(count, 1)
+
+        # 5. Log the stabilized train loss
+        # You can name it 'loss/train_stabilized' or anything that suits your logging scheme
+        self.log('train_stabilized', avg_stabilized_loss, prog_bar=True)
+
+        # 6. Return to training mode
+        self.train()
+
 
     @torch.no_grad()
     def forward_cls_free(self, latents, pano_latent, timestep, prompt_embd, pano_prompt_embd, batch, pano_layout_cond=None):

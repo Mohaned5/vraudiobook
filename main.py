@@ -26,7 +26,7 @@ def cli_main():
     os.makedirs(exp_dir, exist_ok=True)
     wandb_logger = lazy_instance(
         WandbLogger,
-        project='panfusion',
+        project='panfusionlr',
         id=wandb_id,
         save_dir=exp_dir
         )

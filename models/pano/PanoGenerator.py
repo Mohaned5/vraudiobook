@@ -286,6 +286,7 @@ class PanoGenerator(PanoBase):
 
         steps_per_epoch = len(self.trainer.datamodule.train_dataloader())
         warmup_steps = 10 * steps_per_epoch
+        print(f"Linear warmup for {warmup_steps} steps.")
 
         def linear_warmup(step):
             if step < warmup_steps:

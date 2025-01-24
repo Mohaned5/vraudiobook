@@ -41,7 +41,7 @@ class PanimeDataset(PanoDataset):
                     "view_id": view_id,
                     "pano_prompt": pano_prompt
                 })
-
+            new_data = new_data[:4] 
             return new_data
 
         else:
@@ -81,7 +81,8 @@ class PanimeDataset(PanoDataset):
                     "cameras_data": sample["cameras"]
                 }
                 new_data.append(entry)
-
+                
+            new_data = new_data[:4] 
             return new_data
 
     def scan_results(self, result_dir):
@@ -185,7 +186,7 @@ class PanimeDataModule(PanoDataModule):
             # 1) Create a stabilized subset
             # -----------------------------
             total_len = len(self.train_dataset)
-            subset_len = int(0.15 * total_len)  # 15% of train set for example
+            subset_len = int(0.25 * total_len)  # 15% of train set for example
 
             # Fix a random seed for reproducibility
             g = torch.Generator()

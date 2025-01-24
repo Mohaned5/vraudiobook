@@ -41,7 +41,7 @@ class PanimeDataset(PanoDataset):
                     "view_id": view_id,
                     "pano_prompt": pano_prompt
                 })
-            new_data = new_data[:4] 
+
             return new_data
 
         else:
@@ -81,8 +81,7 @@ class PanimeDataset(PanoDataset):
                     "cameras_data": sample["cameras"]
                 }
                 new_data.append(entry)
-                
-            new_data = new_data[:4] 
+
             return new_data
 
     def scan_results(self, result_dir):

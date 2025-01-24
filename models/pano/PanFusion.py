@@ -125,7 +125,6 @@ class PanFusion(PanoGenerator):
     
     def on_train_epoch_end(self):
         # 1. Switch the model to eval mode (no grad, no dropout, etc.)
-        print("Evaluating stabilized train loss...")
         self.eval()
 
         # 2. Fix a seed for random noise/timesteps, so every epoch sees the exact same noise

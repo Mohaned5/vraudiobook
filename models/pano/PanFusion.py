@@ -53,6 +53,8 @@ class PanFusion(PanoGenerator):
             self.trainable_params.extend(self.mv_base_model.trainable_parameters)
 
     def init_noise(self, bs, equi_h, equi_w, pers_h, pers_w, cameras, device):
+        equi_h, equi_w, pers_h, pers_w = map(int, (equi_h, equi_w, pers_h, pers_w))
+
         cameras = {k: rearrange(v, 'b m ... -> (b m) ...') for k, v in cameras.items()}
         m = len(cameras['FoV']) // bs
         pano_noise = torch.randn(
@@ -181,11 +183,14 @@ class PanFusion(PanoGenerator):
     @torch.no_grad()
     def inference(self, batch):
         bs, m = batch['cameras']['height'].shape[:2]
-        h, w = batch['cameras']['height'][0, 0].item(), batch['cameras']['width'][0, 0].item()
+        h = int(batch['cameras']['height'][0, 0])
+        w = int(batch['cameras']['width'][0, 0])
         device = self.device
 
+        equi_h = int(batch['height'][0] // 8)
+        equi_w = int(batch['width'][0] // 8)
         pano_latent, latents = self.init_noise(
-            bs, batch['height']//8, batch['width']//8, h//8, h//8, batch['cameras'], device)
+            bs, equi_h, equi_w, h//8, h//8, batch['cameras'], device)
 
         pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
         prompt_null = self.encode_text('')[:, None]

@@ -244,10 +244,9 @@ class PanoGenerator(PanoBase):
                 result.append(None)
             elif isinstance(input, dict):
                 result.append({k: torch.cat([v]*2) for k, v in input.items()})
-            elif isinstance(input, list):
-                result.append([torch.cat([v]*2) for v in input])
             else:
-                result.append(torch.cat([input]*2))
+            # replicate along batch dimension
+                result.append(torch.cat([input, input], dim=0))
         return result
 
     def combine_cls_free_guide_pred(self, *noise_pred_list):

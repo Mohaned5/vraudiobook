@@ -157,10 +157,11 @@ class PanFusion(PanoGenerator):
 
     @torch.no_grad()
     def forward_cls_free(self, latents, pano_latent, timestep, prompt_embd, pano_prompt_embd, batch, pano_layout_cond=None):
-        latents, pano_latent, timestep, cameras, images_layout_cond, pano_layout_cond = self.gen_cls_free_guide_pair(
+        latents, pano_latent, timestep, cameras, images_layout_cond, pano_layout_cond, prompt_embd, pano_prompt_embd = self.gen_cls_free_guide_pair(
             latents, pano_latent, timestep, batch['cameras'],
-            batch.get('images_layout_cond'), pano_layout_cond)
-
+            batch.get('images_layout_cond'), pano_layout_cond,
+            prompt_embd, pano_prompt_embd
+        )
         noise_pred, pano_noise_pred = self.mv_base_model(
             latents, pano_latent, timestep, prompt_embd, pano_prompt_embd, cameras,
             images_layout_cond, pano_layout_cond)
@@ -193,10 +194,10 @@ class PanFusion(PanoGenerator):
             bs, equi_h, equi_w, h//8, h//8, batch['cameras'], device)
 
         pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
-        prompt_null = self.encode_text('')[:, None]
-        pano_prompt_embd = torch.cat([prompt_null, pano_prompt_embd])
-        prompt_null = prompt_null.repeat(1, m, 1, 1)
-        pers_prompt_embd = torch.cat([prompt_null, pers_prompt_embd])
+        # prompt_null = self.encode_text('')[:, None]
+        # pano_prompt_embd = torch.cat([prompt_null, pano_prompt_embd])
+        # prompt_null = prompt_null.repeat(1, m, 1, 1)
+        # pers_prompt_embd = torch.cat([prompt_null, pers_prompt_embd])
 
         self.scheduler.set_timesteps(self.hparams.diff_timestep, device=device)
         timesteps = self.scheduler.timesteps

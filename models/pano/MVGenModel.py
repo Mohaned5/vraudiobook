@@ -359,7 +359,7 @@ class MultiViewBaseModel(nn.Module):
             sample = self.unet.conv_act(sample)
             sample = self.unet.conv_out(sample)
             # reshape back => shape (b_lat, m_lat, C, H, W)
-            sample = rearrange(sample, '(bm) c h w -> b m c h w', b=b_lat, m=m_lat)
+            sample = rearrange(sample, '(b m) c h w -> b m c h w', b=b_lat, m=m_lat)
         else:
             sample = None
 
@@ -373,6 +373,6 @@ class MultiViewBaseModel(nn.Module):
             pano_sample = unpad_pano(pano_sample, 1)
 
         # shape => (b_pano, m_pano, C, H, W)
-        pano_sample = rearrange(pano_sample, '(bm) c h w -> b m c h w', b=b_pano, m=m_pano)
+        pano_sample = rearrange(pano_sample, '(b m) c h w -> b m c h w', b=b_pano, m=m_pano)
 
         return sample, pano_sample

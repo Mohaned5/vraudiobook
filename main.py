@@ -29,6 +29,7 @@ def cli_main():
         project='panfusionlr',
         id=wandb_id,
         save_dir=exp_dir
+        resume="allow",
         )
 
     ckpt_dir = os.path.join(exp_dir, 'checkpoints')

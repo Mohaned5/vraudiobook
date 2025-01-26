@@ -249,38 +249,46 @@ class PanFusion(PanoGenerator):
         
         # 1) Encode the ground-truth perspective images
         latents = self.encode_image(batch['images'], self.vae)  # shape: (b, m, c, h, w)
-
+        print(f"latents shape: {latents.shape}")
         # 2) Encode the ground-truth pano
         pano_pad = self.pad_pano(batch['pano'])
         pano_latent_pad = self.encode_image(pano_pad, self.vae)
         pano_latent = self.unpad_pano(pano_latent_pad, latent=True)
-
+        print(f"pano_latent shape: {pano_latent.shape}")
         # 3) Sample a random t for each sample
         b, m, c, h, w = latents.shape
         t = torch.randint(0, self.scheduler.config.num_train_timesteps,
                           (b,), device=device).long()
-
+        print(f"t shape: {t.shape}")
         # 4) Create prompts
         pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
+        print(f"pers_prompt_embd shape: {pers_prompt_embd.shape}")
+        print(f"pano_prompt_embd shape: {pano_prompt_embd.shape}")
         pano_noise, noise = self.init_noise(
             b, pano_latent.shape[-2], pano_latent.shape[-1], h, w, batch['cameras'], device
         )
-
+        print(f"pano_noise shape: {pano_noise.shape}")
+        print(f"noise shape: {noise.shape}")
         # 5) Add noise
         noise_z = self.scheduler.add_noise(latents, noise, t)
         pano_noise_z = self.scheduler.add_noise(pano_latent, pano_noise, t)
+        print(f"noise_z shape: {noise_z.shape}")
+        print(f"pano_noise_z shape: {pano_noise_z.shape}")
         t = t[:, None].repeat(1, m)  # shape: (b, m)
+        print(f"t after repeat shape: {t.shape}")
 
         # 6) Forward pass
         denoise, pano_denoise = self.mv_base_model(
             noise_z, pano_noise_z, t, pers_prompt_embd, pano_prompt_embd,
             batch['cameras'], batch.get('images_layout_cond'), batch.get('pano_layout_cond')
         )
-
+        print(f"denoise shape: {denoise.shape}")
+        print(f"pano_denoise shape: {pano_denoise.shape}")
         # 7) Compute MSE losses
         loss_pers = torch.nn.functional.mse_loss(denoise, noise)
         loss_pano = torch.nn.functional.mse_loss(pano_denoise, pano_noise)
         val_loss = loss_pers + loss_pano
+        print(f"loss_pers: {loss_pers.item()}, loss_pano: {loss_pano.item()}, val_loss: {val_loss.item()}")
 
         # 8) Log numeric val losses
         self.log('val/loss_pers', loss_pers, prog_bar=True, on_step=False, on_epoch=True)

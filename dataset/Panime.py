@@ -230,7 +230,7 @@ class PanimeDataModule(PanoDataModule):
     def val_dataloader(self):
         return torch.utils.data.DataLoader(
             self.val_dataset,
-            batch_size=self.hparams.batch_size,
+            batch_size=1,
             shuffle=False,
             num_workers=self.hparams.num_workers,
             drop_last=False

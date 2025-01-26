@@ -99,6 +99,8 @@ class PanFusion(PanoGenerator):
         pano_pad = self.pad_pano(batch['pano'])
         pano_latent_pad = self.encode_image(pano_pad, self.vae)
         pano_latent = self.unpad_pano(pano_latent_pad, latent=True)
+
+        pano_latent = pano_latent.repeat(1, m, 1, 1, 1)
         # # test encoded pano latent
         # pano_pad = ((pano_pad[0, 0] + 1) * 127.5).cpu().numpy().astype(np.uint8)
         # pano = ((batch['pano'][0, 0] + 1) * 127.5).cpu().numpy().astype(np.uint8)
@@ -110,9 +112,19 @@ class PanFusion(PanoGenerator):
         pano_noise, noise = self.init_noise(
             b, *pano_latent.shape[-2:], h, w, batch['cameras'], device)
 
-        noise_z = self.scheduler.add_noise(latents, noise, t)
-        pano_noise_z = self.scheduler.add_noise(pano_latent, pano_noise, t)
-        t = t[:, None].repeat(1, m)
+        noise_z = self.scheduler.add_noise(
+            rearrange(latents, 'b m c h w -> (b m) c h w'),
+            rearrange(noise, 'b m c h w -> (b m) c h w'),
+            t.flatten()  # [b*m]
+        )  # noise_z: [(b*m), c, h, w]
+
+        pano_noise_z = self.scheduler.add_noise(
+            rearrange(pano_latent, 'b m c h w -> (b m) c h w'),
+            rearrange(pano_noise, 'b m c h w -> (b m) c h w'),
+            t.flatten()  # [b*m]
+        )  # pano_noise_z: [(b*m), c, h, w]
+
+        t = t[:, None].repeat(1, m).flatten()  # [b*m]
 
         denoise, pano_denoise = self.mv_base_model(
             noise_z, pano_noise_z, t, pers_prompt_embd, pano_prompt_embd, batch['cameras'],
@@ -261,6 +273,7 @@ class PanFusion(PanoGenerator):
         pano_pad = self.pad_pano(batch['pano'])
         pano_latent_pad = self.encode_image(pano_pad, self.vae)
         pano_latent = self.unpad_pano(pano_latent_pad, latent=True)
+        pano_latent = pano_latent.repeat(1, m, 1, 1, 1)
         print(f"pano_latent shape: {pano_latent.shape}")
         # 3) Sample a random t for each sample
         b, m, c, h, w = latents.shape
@@ -276,13 +289,24 @@ class PanFusion(PanoGenerator):
         )
         print(f"pano_noise shape: {pano_noise.shape}")
         print(f"noise shape: {noise.shape}")
-        # 5) Add noise
-        noise_z = self.scheduler.add_noise(latents, noise, t)
-        pano_noise_z = self.scheduler.add_noise(pano_latent, pano_noise, t)
+
+        noise_z = self.scheduler.add_noise(
+            rearrange(latents, 'b m c h w -> (b m) c h w'),
+            rearrange(noise, 'b m c h w -> (b m) c h w'),
+            t.flatten()
+        )  # [b*m, c, h, w]
+        pano_noise_z = self.scheduler.add_noise(
+            rearrange(pano_latent, 'b m c h w -> (b m) c h w'),
+            rearrange(pano_noise, 'b m c h w -> (b m) c h w'),
+            t.flatten()
+        )  # [b*m, c, h, w]
         print(f"noise_z shape: {noise_z.shape}")
         print(f"pano_noise_z shape: {pano_noise_z.shape}")
-        t = t[:, None].repeat(1, m)  # shape: (b, m)
+
+        # 7) Adjust timestep
+        t = t[:, None].repeat(1, m).flatten()
         print(f"t after repeat shape: {t.shape}")
+        
 
         # 6) Forward pass
         denoise, pano_denoise = self.mv_base_model(

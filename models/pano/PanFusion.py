@@ -42,7 +42,6 @@ class PanFusion(PanoGenerator):
         ])
 
         self._val_lpips = []
-        self.lpips_fid_epochs = 10
 
         
 
@@ -251,142 +250,118 @@ class PanFusion(PanoGenerator):
     def validation_step(self, batch, batch_idx):
         device = batch['images'].device
         
-        # 1) Encode the ground-truth perspective images
         latents = self.encode_image(batch['images'], self.vae)  # shape: (b, m, c, h, w)
-        # 2) Encode the ground-truth pano
+
         pano_pad = self.pad_pano(batch['pano'])
         pano_latent_pad = self.encode_image(pano_pad, self.vae)
         pano_latent = self.unpad_pano(pano_latent_pad, latent=True)
-        # 3) Sample a random t for each sample
+
         b, m, c, h, w = latents.shape
         t = torch.randint(0, self.scheduler.config.num_train_timesteps,
                           (b,), device=device).long()
-        # 4) Create prompts
+
         pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
         pano_noise, noise = self.init_noise(
             b, pano_latent.shape[-2], pano_latent.shape[-1], h, w, batch['cameras'], device
         )
-        # 5) Add noise
+
         noise_z = self.scheduler.add_noise(latents, noise, t)
         pano_noise_z = self.scheduler.add_noise(pano_latent, pano_noise, t)
-        t = t[:, None].repeat(1, m)  # shape: (b, m)
+        t = t[:, None].repeat(1, m) 
 
-        # 6) Forward pass
         denoise, pano_denoise = self.mv_base_model(
             noise_z, pano_noise_z, t, pers_prompt_embd, pano_prompt_embd,
             batch['cameras'], batch.get('images_layout_cond'), batch.get('pano_layout_cond')
         )
-        # 7) Compute MSE losses
+
         loss_pers = torch.nn.functional.mse_loss(denoise, noise)
         loss_pano = torch.nn.functional.mse_loss(pano_denoise, pano_noise)
         val_loss = loss_pers + loss_pano
 
-        # 8) Log numeric val losses
         self.log('val/loss_pers', loss_pers, prog_bar=True, on_step=False, on_epoch=True)
         self.log('val/loss_pano', loss_pano, prog_bar=True, on_step=False, on_epoch=True)
         self.log('val/loss', val_loss, prog_bar=True, on_step=False, on_epoch=True)
 
-        # 9) Also log images if you want
         images_pred, pano_pred = self.inference(batch)
         self.log_val_image(
             images_pred, batch['images'], pano_pred, batch['pano'], batch['pano_prompt'],
             batch.get('images_layout_cond'), batch.get('pano_layout_cond')
         )
-        if (self.current_epoch + 1) % self.lpips_fid_epochs == 0:
-            # --- Compute and Accumulate LPIPS and FID Metrics ---
-            lpips_scores = []
-            # Example snippet in validation_step
 
-            for i in range(b):
-                for j in range(m):
-                    # pred_img is a NumPy array from your 'tensor_to_image()'
-                    pred_img = images_pred[i, j]  # shape e.g. (256, 256, 3) if it's channels-last
-                    gt_img   = batch['images'][i, j]  # Torch tensor with shape (3, 256, 256)
+        lpips_scores = []
 
-                    # Convert pred_img (NumPy) to Torch
-                    pred_img_torch = torch.from_numpy(pred_img).float()
+        for i in range(b):
+            for j in range(m):
+                pred_img = images_pred[i, j] 
+                gt_img   = batch['images'][i, j]  
+                pred_img_torch = torch.from_numpy(pred_img).float()
 
-                    # -- Permute to (C, H, W) if needed --
-                    # If your images come out as (H, W, C), do .permute(2, 0, 1):
-                    if pred_img_torch.ndim == 3 and pred_img_torch.shape[-1] == 3:
-                        pred_img_torch = pred_img_torch.permute(2, 0, 1)
+                if pred_img_torch.ndim == 3 and pred_img_torch.shape[-1] == 3:
+                    pred_img_torch = pred_img_torch.permute(2, 0, 1)
 
-                    # Move to device
-                    pred_img_torch = pred_img_torch.to(device)
-                    gt_img_torch   = gt_img.to(device).float()  # shape is presumably already (3, H, W)
+                pred_img_torch = pred_img_torch.to(device)
+                gt_img_torch   = gt_img.to(device).float() 
 
-                    # shape is now (3, H, W). LPIPS expects batch dimension => (1, 3, H, W)
-                    lpips_val = self.lpips_model(
-                        pred_img_torch.unsqueeze(0),  # => (1, 3, H, W)
-                        gt_img_torch.unsqueeze(0)     # => (1, 3, H, W)
-                    )
-                    lpips_scores.append(lpips_val.item())
+                lpips_val = self.lpips_model(
+                    pred_img_torch.unsqueeze(0), 
+                    gt_img_torch.unsqueeze(0)     
+                )
+                lpips_scores.append(lpips_val.item())
 
-                    # FID steps below (already presumably channels-first):
-                    pred_img_01 = self.to01(pred_img_torch).clamp(0, 1).cpu()
-                    gt_img_01   = self.to01(gt_img_torch).clamp(0, 1).cpu()
+                pred_img_01 = self.to01(pred_img_torch).clamp(0, 1).cpu()
+                gt_img_01   = self.to01(gt_img_torch).clamp(0, 1).cpu()
 
-                    pred_pil = transforms.ToPILImage()(pred_img_01)
-                    gt_pil   = transforms.ToPILImage()(gt_img_01)
+                pred_pil = transforms.ToPILImage()(pred_img_01)
+                gt_pil   = transforms.ToPILImage()(gt_img_01)
 
-                    pred_img_resized = self.fid_transform(pred_pil)
-                    pred_img_resized = pred_img_resized.to(device) 
-                    gt_img_resized   = self.fid_transform(gt_pil)
-                    gt_img_resized = gt_img_resized.to(device)
+                pred_img_resized = self.fid_transform(pred_pil)
+                pred_img_resized = pred_img_resized.to(device) 
+                gt_img_resized   = self.fid_transform(gt_pil)
+                gt_img_resized = gt_img_resized.to(device)
 
-                    # Update FID
-                    self.fid_metric.update(pred_img_resized.unsqueeze(0), real=False)
-                    self.fid_metric.update(gt_img_resized.unsqueeze(0), real=True)
+                self.fid_metric.update(pred_img_resized.unsqueeze(0), real=False)
+                self.fid_metric.update(gt_img_resized.unsqueeze(0), real=True)
 
 
-
-            # --- Log Batch-Level LPIPS ---
-            if lpips_scores:
-                avg_lpips_batch = sum(lpips_scores) / len(lpips_scores)
-                self._val_lpips.append(avg_lpips_batch)
-                self.log('val/lpips_batch', avg_lpips_batch, on_step=False, on_epoch=True, sync_dist=True)
-            else:
-                avg_lpips_batch = float('nan')
-                self.log('val/lpips_batch', avg_lpips_batch, on_step=False, on_epoch=True, sync_dist=True)
+        
+        if lpips_scores:
+            avg_lpips_batch = sum(lpips_scores) / len(lpips_scores)
+            self._val_lpips.append(avg_lpips_batch)
+            # self.log('val/lpips_batch', avg_lpips_batch, on_step=False, on_epoch=True, sync_dist=True)
+        else:
+            avg_lpips_batch = float('nan')
+            # self.log('val/lpips_batch', avg_lpips_batch, on_step=False, on_epoch=True, sync_dist=True)
 
         return val_loss
 
     
     def on_validation_epoch_end(self):
-        # --- Aggregate LPIPS Scores ---
-        if (self.current_epoch + 1) % self.lpips_fid_epochs == 0:
-            if self._val_lpips:
-                epoch_avg_lpips = sum(self._val_lpips) / len(self._val_lpips)
-            else:
-                epoch_avg_lpips = float('nan')
-            self.log('val/lpips_epoch', epoch_avg_lpips, prog_bar=True)
-
-            # --- Compute FID for the Epoch ---
-            try:
-                epoch_fid = self.fid_metric.compute().item()
-            except Exception as e:
-                self.print(f"Error computing FID: {e}")
-                epoch_fid = float('nan')
-            self.log('val/fid_epoch', epoch_fid, prog_bar=True)
-
-            # --- Reset Metrics for Next Epoch ---
-            self._val_lpips.clear()
-            self.fid_metric.reset()
-
-            if self.trainer and self.trainer.is_global_zero:
-                checkpoint_dir = "checkpoints_val_epoch"
-                os.makedirs(checkpoint_dir, exist_ok=True)
-
-                checkpoint_path = os.path.join(
-                    checkpoint_dir,
-                    f"epoch_{self.current_epoch}.ckpt"
-                )
-                self.trainer.save_checkpoint(checkpoint_path)
-                print(f"Saved checkpoint at end of validation epoch: {checkpoint_path}")
+        if self._val_lpips:
+            epoch_avg_lpips = sum(self._val_lpips) / len(self._val_lpips)
         else:
-            # Optionally, log that metrics were skipped
-            self.log('val/lpips_epoch', float('nan'), prog_bar=True)
-            self.log('val/fid_epoch', float('nan'), prog_bar=True)
+            epoch_avg_lpips = float('nan')
+        self.log('val/lpips_epoch', epoch_avg_lpips, prog_bar=True)
+
+        try:
+            epoch_fid = self.fid_metric.compute().item()
+        except Exception as e:
+            self.print(f"Error computing FID: {e}")
+            epoch_fid = float('nan')
+        self.log('val/fid_epoch', epoch_fid, prog_bar=True)
+
+        self._val_lpips.clear()
+        self.fid_metric.reset()
+
+        if self.trainer and self.trainer.is_global_zero:
+            checkpoint_dir = "checkpoints_val_epoch"
+            os.makedirs(checkpoint_dir, exist_ok=True)
+
+            checkpoint_path = os.path.join(
+                checkpoint_dir,
+                f"epoch_{self.current_epoch}.ckpt"
+            )
+            self.trainer.save_checkpoint(checkpoint_path)
+            print(f"Saved checkpoint at end of validation epoch: {checkpoint_path}")
 
 
 

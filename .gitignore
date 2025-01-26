@@ -226,3 +226,8 @@ pyrightconfig.json
 *.zip
 *.ckpt
 __pycache__
+
+data/Panime/train/*
+data/Panime/test/*
+data/Panime/val/*
+data/Panime/ed2/*

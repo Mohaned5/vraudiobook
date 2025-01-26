@@ -28,7 +28,7 @@ def cli_main():
         WandbLogger,
         project='panfusionlr',
         id=wandb_id,
-        save_dir=exp_dir
+        save_dir=exp_dir,
         resume="allow",
         )
 

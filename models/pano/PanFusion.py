@@ -85,6 +85,10 @@ class PanFusion(PanoGenerator):
         pano_prompt_embd = self.encode_text(pano_prompt)
         pano_prompt_embd = pano_prompt_embd[:, None]
 
+        pano_prompt_embd = pano_prompt_embd.repeat(1, num_cameras, 1, 1)
+        print(f"pano_prompt_embd shape after repeat: {pano_prompt_embd.shape}")
+
+
         return pers_prompt_embd, pano_prompt_embd
 
     def training_step(self, batch, batch_idx):

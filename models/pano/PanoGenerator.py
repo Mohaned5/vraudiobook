@@ -61,7 +61,7 @@ class PanoBase(WandbLightningModule):
 class PanoGenerator(PanoBase):
     def __init__(
             self,
-            lr: float = 1e-6,
+            lr: float = 4e-6,
             guidance_scale: float = 9.0,
             model_id: str = 'stabilityai/stable-diffusion-2-base',
             diff_timestep: int = 50,

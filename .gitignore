@@ -231,3 +231,5 @@ data/Panime/train/*
 data/Panime/test/*
 data/Panime/val/*
 data/Panime/ed2/*
+
+logs/*

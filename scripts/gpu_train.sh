@@ -1,13 +1,13 @@
 #!/bin/bash -l
 #
 ######################  SLURM OPTIONS  ######################
-#SBATCH --partition=gpu               # or whichever GPU partition you use
-#SBATCH --constraint=a100_80g         # ensure we get an A100 80GB card
-#SBATCH --gres=gpu:1                  # request 1 GPU
-#SBATCH --nodes=1                     # (1 node)
-#SBATCH --cpus-per-gpu=4             # example: 4 CPU cores per GPU
-#SBATCH --mem=32G                     # example memory request
-#SBATCH --time=48:00:00               # example time limit (hh:mm:ss or d-hh:mm)
+#SBATCH --partition=gpu              
+#SBATCH --constraint=a100_80g       
+#SBATCH --gres=gpu:1               
+#SBATCH --nodes=1             
+#SBATCH --cpus-per-gpu=4           
+#SBATCH --mem=32G                  
+#SBATCH --time=48:00:00           
 #SBATCH --job-name=Panime
 #SBATCH --output=/scratch/users/%u/%j.out
 #
@@ -23,7 +23,7 @@ WANDB_NAME=Panime \
 python main.py fit \
   --data=PanimeDataModule \
   --model=PanFusion \
-  --trainer.max_epochs=100 \
+  --trainer.max_epochs=200 \
   --data.batch_size=2 \
   --data.num_workers=1 \
-  --model.ckpt_path=./logs/4142dlo4/checkpoints/last.ckpt
+  --model.ckpt_path=./checkpoints_val_epoch/start.ckpt

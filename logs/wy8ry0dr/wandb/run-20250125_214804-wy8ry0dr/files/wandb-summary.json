@@ -1,1 +1,0 @@
-{"cosine_annealing_lr/pg1": 7e-07, "cosine_annealing_lr/pg2": 7e-07, "cosine_annealing_lr/pg3": 7e-07, "trainer/global_step": 0, "_timestamp": 1737841704.311064, "_runtime": 19.366452932357788, "_step": 0, "_wandb": {"runtime": 71}}

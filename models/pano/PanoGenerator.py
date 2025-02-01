@@ -2,7 +2,7 @@ import os
 from diffusers import AutoencoderKL, DDIMScheduler, UNet2DConditionModel
 import torch
 from transformers import CLIPTextModel, CLIPTokenizer
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import LinearLR, CosineAnnealingLR, SequentialLR
 from einops import rearrange
 from abc import abstractmethod
 from diffusers.models.attention_processor import LoRAAttnProcessor
@@ -61,7 +61,7 @@ class PanoBase(WandbLightningModule):
 class PanoGenerator(PanoBase):
     def __init__(
             self,
-            lr: float = 1e-5,
+            lr: float = 2e-5,
             guidance_scale: float = 9.0,
             model_id: str = 'stabilityai/stable-diffusion-2-base',
             diff_timestep: int = 50,
@@ -275,21 +275,48 @@ class PanoGenerator(PanoBase):
         image = vae.decode(latents.to(vae.dtype)).sample
         image = rearrange(image, '(b m) c h w -> b m c h w', b=b)
         return image.to(self.dtype)
-
+        
     def configure_optimizers(self):
+        self.hparams.lr = 2e-5
+
         param_groups = []
         for params, lr_scale in self.trainable_params:
             param_groups.append({"params": params, "lr": self.hparams.lr * lr_scale})
+
         optimizer = torch.optim.AdamW(param_groups)
+
         if self.hparams.layout_cond:
             return optimizer
         else:
-            scheduler = {
-                'scheduler': CosineAnnealingLR(optimizer, T_max=self.trainer.max_epochs, eta_min=1e-7),
-                'interval': 'epoch',  # update the learning rate after each epoch
+            warmup_epochs = 20
+            warmup_scheduler = {
+                'scheduler': LinearLR(
+                    optimizer, start_factor=0.1, end_factor=1.0, total_iters=warmup_epochs
+                ),
+                'interval': 'epoch',
+                'name': 'warmup_lr',
+            }
+
+            cosine_scheduler = {
+                'scheduler': CosineAnnealingLR(
+                    optimizer, T_max=self.trainer.max_epochs - warmup_epochs, eta_min=1e-6
+                ),
+                'interval': 'epoch',
                 'name': 'cosine_annealing_lr',
             }
-            return {'optimizer': optimizer, 'lr_scheduler': scheduler}
+
+        return {
+            'optimizer': optimizer,
+            'lr_scheduler': {
+                'scheduler': SequentialLR(
+                    optimizer,
+                    schedulers=[warmup_scheduler['scheduler'], cosine_scheduler['scheduler']],
+                    milestones=[warmup_epochs]
+                ),
+                'interval': 'epoch',
+                'name': 'combined_lr',
+            }
+        }
         
     """Finding optimal lr"""
     # def configure_optimizers(self):

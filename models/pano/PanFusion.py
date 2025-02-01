@@ -353,7 +353,12 @@ class PanFusion(PanoGenerator):
         self.fid_metric.reset()
 
         if self.trainer and self.trainer.is_global_zero:
-            checkpoint_dir = "checkpoints_val_epoch"
+            if hasattr(self.trainer.logger, "log_dir") and self.trainer.logger.log_dir:
+                runid_path = self.trainer.logger.log_dir
+            else:
+                runid_path = os.path.join("logs", "default_run")  
+
+            checkpoint_dir = os.path.join(runid_path, "checkpoints")
             os.makedirs(checkpoint_dir, exist_ok=True)
 
             checkpoint_path = os.path.join(

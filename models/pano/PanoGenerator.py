@@ -61,7 +61,7 @@ class PanoBase(WandbLightningModule):
 class PanoGenerator(PanoBase):
     def __init__(
             self,
-            lr: float = 1.5e-5,
+            lr: float = 2e-5,
             guidance_scale: float = 9.0,
             model_id: str = 'stabilityai/stable-diffusion-2-base',
             diff_timestep: int = 50,
@@ -288,7 +288,7 @@ class PanoGenerator(PanoBase):
         if self.hparams.layout_cond:
             return optimizer
         else:
-            warmup_epochs = 0
+            warmup_epochs = 20
             warmup_scheduler = {
                 'scheduler': LinearLR(
                     optimizer, start_factor=0.1, end_factor=1.0, total_iters=warmup_epochs

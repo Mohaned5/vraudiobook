@@ -183,30 +183,43 @@ class PanFusion(PanoGenerator):
     def inference(self, batch):
         device = self.device
         bs, m = batch['cameras']['height'].shape[:2]
-        # Compute dimensions
+        # Compute dimensions.
         equi_h = int(batch['height'][0] // 8)
         equi_w = int(batch['width'][0] // 8)
         pers_h, pers_w = batch['cameras']['height'][0, 0].item(), batch['cameras']['width'][0, 0].item()
 
         # Initialize latents as before.
         pano_latent, latents = self.init_noise(bs, equi_h, equi_w, pers_h, pers_w, batch['cameras'], device)
-        pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
+        
+        # Check if the batch contains "full_prompts" (from your updated loader).
+        if "full_prompts" in batch and batch["full_prompts"]:
+            full_prompts = batch["full_prompts"]
+            # Here you could split the prompts into anchor and injection parts.
+            # For simplicity, we use the first prompt for both passes.
+            pano_prompt_text = full_prompts[0]
+        else:
+            pano_prompt_text = batch.get("pano_prompt", "")
 
-        # Set up the scheduler timesteps.
+        # Embed the pano prompt.
+        pano_prompt_embd = self.encode_text(pano_prompt_text)
+        pano_prompt_embd = pano_prompt_embd[:, None]
+        # For perspective prompts, use the existing get_pers_prompt.
+        pers_prompt = self.get_pers_prompt(batch)
+        pers_prompt_embd = self.encode_text(pers_prompt)
+        pers_prompt_embd = rearrange(pers_prompt_embd, '(b m) l c -> b m l c', m=m)
+
+        # Set up scheduler timesteps.
         self.scheduler.set_timesteps(self.hparams.diff_timestep, device=device)
         timesteps = self.scheduler.timesteps
 
         # ----------------------------
         # 1. Anchor (Cache) Pass:
-        # Initialize cache and query store.
+        print("[DEBUG] Starting anchor (cache) pass.")
         self.anchor_cache = AnchorCache()
-        # (Optionally, if you want to use your mask_dropout hyperparameter here, you might pass it into
-        # the AnchorCache or later when computing attention masks.)
         self.query_store = QueryStore(
             t_range=[0, self.scheduler.config.num_train_timesteps // 10],
             strength_start=1.0, strength_end=0.8
         )
-        # Run the denoising loop to generate anchor images.
         for i, t in enumerate(timesteps):
             timestep = torch.cat([t[None, None]] * m, dim=1)
             noise_pred, pano_noise_pred = self.mv_base_model(
@@ -214,34 +227,29 @@ class PanFusion(PanoGenerator):
                 batch.get('images_layout_cond'), batch.get('pano_layout_cond'),
                 query_store=self.query_store,
                 anchors_cache=self.anchor_cache,
-                feature_injector=None  # No injection during cache pass.
+                feature_injector=None  # No injection during anchor pass.
             )
             latents = self.scheduler.step(noise_pred, t, latents).prev_sample
             pano_latent = self.scheduler.step(pano_noise_pred, t, pano_latent).prev_sample
 
-        # (Optional) You might limit the number of anchors stored using self.hparams.n_anchors here.
-        print("AnchorCache keys:", self.anchor_cache.input_h_cache.keys())
+        print("[DEBUG] Finished anchor pass.")
+        print("AnchorCache keys:", list(self.anchor_cache.input_h_cache.keys()))
 
         # ----------------------------
         # 2. Injection Pass:
-        # Switch the anchor cache mode to injection.
+        print("[DEBUG] Starting injection pass.")
         self.anchor_cache.set_mode_inject()
-
-        # Create a FeatureInjector instance using your injection_range hyperparameter.
-        # Replace the hard-coded injection range with self.hparams.injection_range.
         self.feature_injector = FeatureInjector(
-            nn_map={},       # Replace with your actual nearest–neighbor map if available.
-            nn_distances={}, # Replace with your actual distances.
+            nn_map={},       # Replace with actual nearest–neighbor map if available.
+            nn_distances={}, # Replace with computed distances.
             attn_masks=self.attnstore.last_mask if hasattr(self.attnstore, "last_mask") else None,
             inject_range_alpha=[tuple(self.hparams.injection_range)],  # Now controlled by your hyperparameter.
             swap_strategy='min',
             dist_thr='dynamic',
-            inject_unet_parts=['up']  # You may expose this too if needed.
+            inject_unet_parts=['up']
         )
-        # Reinitialize latents for a fresh generation pass.
+        # Optionally, reinitialize latents for a fresh generation.
         pano_latent, latents = self.init_noise(bs, equi_h, equi_w, pers_h, pers_w, batch['cameras'], device)
-
-        # Run a second denoising loop, this time with injection.
         for i, t in enumerate(timesteps):
             timestep = torch.cat([t[None, None]] * m, dim=1)
             noise_pred, pano_noise_pred = self.mv_base_model(
@@ -254,7 +262,8 @@ class PanFusion(PanoGenerator):
             latents = self.scheduler.step(noise_pred, t, latents).prev_sample
             pano_latent = self.scheduler.step(pano_noise_pred, t, pano_latent).prev_sample
 
-        # Decode the final latents to images.
+        print("[DEBUG] Finished injection pass.")
+
         images_pred = self.decode_latent(latents, self.vae)
         pano_latent_pad = self.pad_pano(pano_latent, latent=True)
         pano_pred_pad = self.decode_latent(pano_latent_pad, self.vae)

@@ -31,15 +31,25 @@ class PanimeDataset(PanoDataset):
             for sample in all_data:
                 scene_id = sample["scene_id"]
                 view_id = sample["view_id"]
-                pano_prompt = sample.get("pano_prompt", "")
+                subject = sample.get("subject", "")
+                concept_token = sample.get("concept_token", [])
+                settings = sample.get("settings", [])
+                # Create a full prompt for each setting by concatenating subject and setting.
+                if settings:
+                    full_prompts = [f"A photo of {subject} {setting}" for setting in settings]
+                else:
+                    full_prompts = [sample.get("pano_prompt", "")]
                 new_data.append({
                     "scene_id": scene_id,
                     "view_id": view_id,
-                    "pano_prompt": pano_prompt
+                    "subject": subject,
+                    "concept_token": concept_token,
+                    "settings": settings,
+                    "full_prompts": full_prompts,
+                    # For backward compatibility, also supply a pano_prompt.
+                    "pano_prompt": full_prompts[0] if full_prompts else ""
                 })
-            # new_data = new_data[:4] 
             return new_data
-
         else:
             split_file = os.path.join(self.data_dir, f"{mode}.json")
             if not os.path.exists(split_file):
@@ -96,9 +106,17 @@ class PanimeDataset(PanoDataset):
         if self.mode == 'predict':
             scene_id = data['scene_id']
             view_id = data['view_id']
-
             data['pano_id'] = f"{scene_id}_{view_id}"
-            data['pano_prompt'] = data.get('pano_prompt', "")
+            # Now pass along all the new fields:
+            data['subject'] = data.get('subject', "")
+            data['concept_token'] = data.get('concept_token', [])
+            data['settings'] = data.get('settings', [])
+            # Optionally, build a list of full prompts by combining subject with each setting.
+            # For example, you can create a new key "full_prompts":
+            if data['settings']:
+                data['full_prompts'] = [f"A photo of {data['subject']} {s}" for s in data['settings']]
+            else:
+                data['full_prompts'] = [data.get('pano_prompt', "")]
 
         else:
             if self.mode == 'train' and self.result_dir is None and random.random() < self.config['uncond_ratio']:

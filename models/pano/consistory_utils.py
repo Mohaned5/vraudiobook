@@ -31,6 +31,7 @@ class FeatureInjector:
 
     def inject_outputs(self, output, curr_iter, output_res, extended_mapping, place_in_unet, anchors_cache=None):
         curr_unet_part = place_in_unet.split('_')[0]
+        print(f"[DEBUG] Injecting outputs in {curr_unet_part} at iteration {curr_iter}.")
 
         # Inject only in the specified unet parts (up, mid, down)
         if (curr_unet_part not in self.inject_unet_parts) or output_res not in self.inject_res:
@@ -43,6 +44,7 @@ class FeatureInjector:
         vector_dim = output_res**2
 
         alpha = next((alpha for min_range, max_range, alpha in self.inject_range_alpha if min_range <= curr_iter <= max_range), None)
+        print(f"[DEBUG] Computed injection alpha: {alpha}")
         if alpha:
             old_output = output#.clone()
             for i in range(bsz):
@@ -127,9 +129,11 @@ class AnchorCache:
 
     def set_mode_inject(self):
         self.mode = 'inject'
+        print("[DEBUG] AnchorCache mode switched to 'inject'.")
 
     def set_mode_cache(self):
         self.mode = 'cache'
+        print("[DEBUG] AnchorCache mode switched to 'cache'.")
 
     def is_inject_mode(self):
         return self.mode == 'inject'

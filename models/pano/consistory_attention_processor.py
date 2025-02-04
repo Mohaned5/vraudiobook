@@ -32,6 +32,8 @@ class ConsistoryAttnStoreProcessor:
         self.place_in_unet = place_in_unet
 
     def __call__(self, attn: Attention, hidden_states, encoder_hidden_states=None, attention_mask=None, record_attention=True, **kwargs):
+        print(f"[DEBUG] Extended Attn Processor in {self.place_in_unet} called at iteration {kwargs.get('curr_iter', 'N/A')}.")
+        print(f"[DEBUG] Query shape: {hidden_states.shape}")
         batch_size, sequence_length, _ = hidden_states.shape
         attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size)
 

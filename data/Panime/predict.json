@@ -1,23 +1,14 @@
 [
-    {
-      "scene_id": "1",
-      "view_id": "1",
-      "pano_prompt": "A serene Japanese zen garden with raked sand patterns, blooming cherry blossoms, and a traditional wooden bridge over a koi pond, surrounded by lush greenery"
-    },
-    {
-      "scene_id": "2",
-      "view_id": "1",
-      "pano_prompt": "A futuristic cityscape at night, with towering neon-lit skyscrapers, flying vehicles, and bustling streets filled with holographic advertisements"
-    },
-    {
-        "scene_id": "3",
-        "view_id": "1",
-        "pano_prompt": "A mystical enchanted forest with glowing mushrooms, ancient twisted trees, and a soft golden light filtering through a misty canopy"
-    },
-    {
-        "scene_id": "4",
-        "view_id": "1",
-        "pano_prompt": "A magical wizard’s study filled with ancient books, floating candles, a glowing crystal ball, and a view of a starry night sky through an arched window"
-    }
+  {
+    "scene_id": "1",
+    "view_id": "1",
+    "subject": "A serene Japanese zen garden with raked sand patterns, blooming cherry blossoms, and a traditional wooden bridge over a koi pond, surrounded by lush greenery",
+    "concept_token": ["garden"],
+    "settings": [
+        "sitting in the beach",
+        "standing in the snow",
+        "playing in the park"
+    ]
+  }
   ]
   

@@ -11,6 +11,7 @@ import lpips
 from torchvision import transforms
 from torchmetrics.image.fid import FrechetInceptionDistance
 import torchvision.transforms as T
+from consistory_utils import AnchorCache, QueryStore, FeatureInjector
 
 
 class PanFusion(PanoGenerator):
@@ -180,65 +181,87 @@ class PanFusion(PanoGenerator):
 
     @torch.no_grad()
     def inference(self, batch):
+        device = self.device
         bs, m = batch['cameras']['height'].shape[:2]
-        h, w = batch['cameras']['height'][0, 0].item(), batch['cameras']['width'][0, 0].item()
-
+        # Compute dimensions
         equi_h = int(batch['height'][0] // 8)
         equi_w = int(batch['width'][0] // 8)
-        device = self.device
+        pers_h, pers_w = batch['cameras']['height'][0, 0].item(), batch['cameras']['width'][0, 0].item()
 
-        pano_latent, latents = self.init_noise(
-            bs, equi_h, equi_w, h//8, h//8, batch['cameras'], device)
-
+        # Initialize latents as before.
+        pano_latent, latents = self.init_noise(bs, equi_h, equi_w, pers_h, pers_w, batch['cameras'], device)
         pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
-        prompt_null = self.encode_text('')[:, None]
-        pano_prompt_embd = torch.cat([prompt_null, pano_prompt_embd])
-        prompt_null = prompt_null.repeat(1, m, 1, 1)
-        pers_prompt_embd = torch.cat([prompt_null, pers_prompt_embd])
 
+        # Set up the scheduler timesteps.
         self.scheduler.set_timesteps(self.hparams.diff_timestep, device=device)
         timesteps = self.scheduler.timesteps
 
-        pano_layout_cond = batch.get('pano_layout_cond')
-
-        curr_rot = 0
+        # ----------------------------
+        # 1. Anchor (Cache) Pass:
+        # Initialize cache and query store.
+        self.anchor_cache = AnchorCache()
+        # (Optionally, if you want to use your mask_dropout hyperparameter here, you might pass it into
+        # the AnchorCache or later when computing attention masks.)
+        self.query_store = QueryStore(
+            t_range=[0, self.scheduler.config.num_train_timesteps // 10],
+            strength_start=1.0, strength_end=0.8
+        )
+        # Run the denoising loop to generate anchor images.
         for i, t in enumerate(timesteps):
-            timestep = torch.cat([t[None, None]]*m, dim=1)
+            timestep = torch.cat([t[None, None]] * m, dim=1)
+            noise_pred, pano_noise_pred = self.mv_base_model(
+                latents, pano_latent, timestep, pers_prompt_embd, pano_prompt_embd, batch['cameras'],
+                batch.get('images_layout_cond'), batch.get('pano_layout_cond'),
+                query_store=self.query_store,
+                anchors_cache=self.anchor_cache,
+                feature_injector=None  # No injection during cache pass.
+            )
+            latents = self.scheduler.step(noise_pred, t, latents).prev_sample
+            pano_latent = self.scheduler.step(pano_noise_pred, t, pano_latent).prev_sample
 
-            pano_latent, batch['cameras'] = self.rotate_latent(pano_latent, batch['cameras'])
-            curr_rot += self.hparams.rot_diff
+        # (Optional) You might limit the number of anchors stored using self.hparams.n_anchors here.
+        print("AnchorCache keys:", self.anchor_cache.input_h_cache.keys())
 
-            if self.hparams.layout_cond:
-                pano_layout_cond = super().rotate_latent(pano_layout_cond)
-            else:
-                pano_layout_cond = None
-            noise_pred, pano_noise_pred = self.forward_cls_free(
-                latents, pano_latent, timestep, pers_prompt_embd, pano_prompt_embd, batch, pano_layout_cond)
+        # ----------------------------
+        # 2. Injection Pass:
+        # Switch the anchor cache mode to injection.
+        self.anchor_cache.set_mode_inject()
 
-            latents = self.scheduler.step(
-                noise_pred, t, latents).prev_sample
-            pano_latent = self.scheduler.step(
-                pano_noise_pred, t, pano_latent).prev_sample
+        # Create a FeatureInjector instance using your injection_range hyperparameter.
+        # Replace the hard-coded injection range with self.hparams.injection_range.
+        self.feature_injector = FeatureInjector(
+            nn_map={},       # Replace with your actual nearest–neighbor map if available.
+            nn_distances={}, # Replace with your actual distances.
+            attn_masks=self.attnstore.last_mask if hasattr(self.attnstore, "last_mask") else None,
+            inject_range_alpha=[tuple(self.hparams.injection_range)],  # Now controlled by your hyperparameter.
+            swap_strategy='min',
+            dist_thr='dynamic',
+            inject_unet_parts=['up']  # You may expose this too if needed.
+        )
+        # Reinitialize latents for a fresh generation pass.
+        pano_latent, latents = self.init_noise(bs, equi_h, equi_w, pers_h, pers_w, batch['cameras'], device)
 
-        pano_latent, batch['cameras'] = self.rotate_latent(pano_latent, batch['cameras'], -curr_rot)
+        # Run a second denoising loop, this time with injection.
+        for i, t in enumerate(timesteps):
+            timestep = torch.cat([t[None, None]] * m, dim=1)
+            noise_pred, pano_noise_pred = self.mv_base_model(
+                latents, pano_latent, timestep, pers_prompt_embd, pano_prompt_embd, batch['cameras'],
+                batch.get('images_layout_cond'), batch.get('pano_layout_cond'),
+                query_store=self.query_store,
+                anchors_cache=self.anchor_cache,
+                feature_injector=self.feature_injector  # Injection active.
+            )
+            latents = self.scheduler.step(noise_pred, t, latents).prev_sample
+            pano_latent = self.scheduler.step(pano_noise_pred, t, pano_latent).prev_sample
 
+        # Decode the final latents to images.
         images_pred = self.decode_latent(latents, self.vae)
-        images_pred = tensor_to_image(images_pred)
-
         pano_latent_pad = self.pad_pano(pano_latent, latent=True)
         pano_pred_pad = self.decode_latent(pano_latent_pad, self.vae)
         pano_pred = self.unpad_pano(pano_pred_pad)
         pano_pred = tensor_to_image(pano_pred)
-
-        # # test encoded pano latent
-        # img1 = self.decode_latent(pano_latent, self.vae).squeeze()
-        # img1 = np.roll(img1, img1.shape[0]//2, axis=0)
-        # img1 = np.roll(img1, img1.shape[1]//2, axis=1)
-        # img2 = pano_pred.squeeze()
-        # img2 = np.roll(img2, img2.shape[0]//2, axis=0)
-        # img2 = np.roll(img2, img2.shape[1]//2, axis=1)
-
         return images_pred, pano_pred
+
 
     def to01(self, x: torch.Tensor) -> torch.Tensor:
         """

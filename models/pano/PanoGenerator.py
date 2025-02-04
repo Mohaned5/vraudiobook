@@ -11,7 +11,8 @@ import copy
 from utils.pano import pad_pano, unpad_pano
 from ..modules.utils import WandbLightningModule
 from diffusers import ControlNetModel
-
+from consistory_attention_processor import register_extended_self_attn
+from consistory_utils import AttentionStore
 
 class PanoBase(WandbLightningModule):
     def __init__(
@@ -76,6 +77,9 @@ class PanoGenerator(PanoBase):
             layout_cond: bool = False,
             pers_layout_cond: bool = False,
             unet_pad: bool = True,
+            mask_dropout: float = 0.5,     # New hyperparameter for attention mask dropout
+            n_anchors: int = 2,            # New hyperparameter for number of anchor images
+            injection_range: tuple = (10, 20, 0.8),
             **kwargs
             ):
         super().__init__(**kwargs)
@@ -174,6 +178,22 @@ class PanoGenerator(PanoBase):
                 self.trainable_params.append(params)
 
         unet = torch.compile(unet)
+
+        # Create an AttentionStore instance; here we pass a mask_dropout value
+        dropout_val = self.hparams.mask_dropout if hasattr(self.hparams, 'mask_dropout') else 0.5
+        self.attnstore = AttentionStore({'mask_dropout': dropout_val})
+        
+        # Set up extended attention parameters.
+        # Here we choose to extend keys/values for UNet “up” blocks, and have the extension active over all timesteps.
+        extended_attn_kwargs = {
+            'extend_kv_unet_parts': ['up'],
+            't_range': [(1, self.scheduler.config.num_train_timesteps)]
+        }
+
+        # Register the custom attention processors into the UNet.
+        register_extended_self_attn(unet, self.attnstore, extended_attn_kwargs)
+        # -----------------------------
+
         return unet, cn
 
     def load_pano(self):

@@ -353,20 +353,19 @@ class PanFusion(PanoGenerator):
         self.fid_metric.reset()
 
         if self.trainer and self.trainer.is_global_zero:
-            if hasattr(self.trainer.logger, "log_dir") and self.trainer.logger.log_dir:
-                runid_path = self.trainer.logger.log_dir
-            else:
-                runid_path = os.path.join("logs", "default_run")  
-
+            run_id = (
+                self.trainer.logger.experiment.id
+                if hasattr(self.trainer.logger, "experiment") and self.trainer.logger.experiment
+                else "default_run"
+            )
+            
+            runid_path = os.path.join("logs", run_id)
             checkpoint_dir = os.path.join(runid_path, "checkpoints")
             os.makedirs(checkpoint_dir, exist_ok=True)
-
-            checkpoint_path = os.path.join(
-                checkpoint_dir,
-                f"epoch_{self.current_epoch}.ckpt"
-            )
+            
+            checkpoint_path = os.path.join(checkpoint_dir, f"epoch_{self.current_epoch}.ckpt")
             self.trainer.save_checkpoint(checkpoint_path)
-            print(f"Saved checkpoint at end of validation epoch: {checkpoint_path}")
+            print(f"Saved checkpoint: {checkpoint_path}")
 
 
 

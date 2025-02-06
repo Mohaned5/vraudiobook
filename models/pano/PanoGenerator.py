@@ -286,7 +286,7 @@ class PanoGenerator(PanoBase):
         if self.hparams.layout_cond:
             return optimizer
         else:
-            warmup_epochs = 0
+            warmup_epochs = 5
             warmup_scheduler = {
                 'scheduler': LinearLR(
                     optimizer, start_factor=0.1, end_factor=1.0, total_iters=warmup_epochs

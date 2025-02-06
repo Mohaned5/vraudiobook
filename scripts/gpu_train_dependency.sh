@@ -10,6 +10,7 @@
 #SBATCH --time=48:00:00           
 #SBATCH --job-name=Panime
 #SBATCH --output=/scratch/users/%u/%j.out
+#SBATCH --dependency=afterok:23096333
 #
 ###################  END OF SLURM OPTIONS  ##################
 

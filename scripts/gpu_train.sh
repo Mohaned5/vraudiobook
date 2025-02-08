@@ -26,4 +26,4 @@ python main.py fit \
   --trainer.max_epochs=200 \
   --data.batch_size=2 \
   --data.num_workers=1 \
-  --model.ckpt_path=./logs/ror1elfq/checkpoints/last.ckpt
+  --model.ckpt_path=./logs/default_run/checkpoints/epoch_9.ckpt

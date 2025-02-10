@@ -10,7 +10,6 @@
 #SBATCH --time=48:00:00           
 #SBATCH --job-name=Panime
 #SBATCH --output=/scratch/users/%u/%j.out
-#SBATCH --dependency=afterok:23096333
 #
 ###################  END OF SLURM OPTIONS  ##################
 
@@ -27,4 +26,4 @@ python main.py fit \
   --trainer.max_epochs=200 \
   --data.batch_size=2 \
   --data.num_workers=1 \
-  --model.ckpt_path=./logs/default_run/checkpoints/epoch_14.ckpt
+  --model.ckpt_path=./logs/5yigqbkk/checkpoints/last.ckpt

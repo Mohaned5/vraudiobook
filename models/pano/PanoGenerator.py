@@ -97,6 +97,7 @@ class PanoGenerator(PanoBase):
             except RuntimeError as e:
                 print(e)
                 self.load_state_dict(state_dict, strict=False)
+        self.vae = torch.compile(self.vae)
 
 
     def exclude_eval_metrics(self, checkpoint):
@@ -107,17 +108,17 @@ class PanoGenerator(PanoBase):
     def convert_state_dict(self, state_dict):
         new_state_dict = {}
         for k, v in state_dict.items():
-            # Remove "_orig_mod" from all keys first
-            new_k = k.replace("._orig_mod", "")
-            
-            # Process LoRA key replacements to match Consistory-integrated processor paths
+            # Remove "_orig_mod" from non-VAE keys
+            if not k.startswith("vae."):
+                new_k = k.replace("._orig_mod", "")
+            else:
+                new_k = k  # Keep VAE keys as-is if they contain "_orig_mod"
+
+            # Process LoRA key replacements
             new_k = new_k.replace('to_q.lora_layer', 'processor.to_q_lora')
             new_k = new_k.replace('to_k.lora_layer', 'processor.to_k_lora')
             new_k = new_k.replace('to_v.lora_layer', 'processor.to_v_lora')
             new_k = new_k.replace('to_out.0.lora_layer', 'processor.to_out_lora')
-            
-            # Handle any additional prefixes introduced by Consistory processors if necessary
-            # Example: new_k = new_k.replace('some_consistory_prefix.', '')
             
             new_state_dict[new_k] = v
         return new_state_dict
@@ -143,7 +144,7 @@ class PanoGenerator(PanoBase):
             self.hparams.model_id, subfolder="vae", torch_dtype=torch.float16, use_safetensors=True)
         self.vae.eval()
         self.vae.requires_grad_(False)
-        self.vae = torch.compile(self.vae)
+        #self.vae = torch.compile(self.vae)
 
         self.scheduler = DDIMScheduler.from_pretrained(
             self.hparams.model_id, subfolder="scheduler", torch_dtype=torch.float16, use_safetensors=True)

@@ -107,31 +107,32 @@ class PanoGenerator(PanoBase):
     def convert_state_dict(self, state_dict):
         new_state_dict = {}
         for k, v in state_dict.items():
-            # Skip SDXL-specific components that don't exist in SD2.0
-            if k.startswith(("vae.", "text_encoder.")):
+            # Skip keys for the VAE and text encoder since SD2.0 uses its own components
+            if k.startswith("vae.") or k.startswith("text_encoder."):
                 continue
-                
-            # Process LoRA key conversions
+
+            # Remove any extra prefix (e.g. "._orig_mod")
             new_k = k.replace("._orig_mod", "")
+            # Remap LoRA keys if present
             if "lora_layer" in new_k:
                 new_k = new_k.replace("to_q.lora_layer", "processor.to_q_lora")
                 new_k = new_k.replace("to_k.lora_layer", "processor.to_k_lora")
                 new_k = new_k.replace("to_v.lora_layer", "processor.to_v_lora")
                 new_k = new_k.replace("to_out.0.lora_layer", "processor.to_out_lora")
-                
             new_state_dict[new_k] = v
         return new_state_dict
+
 
     def on_load_checkpoint(self, checkpoint):
         self.exclude_eval_metrics(checkpoint)
         converted_state = self.convert_state_dict(checkpoint['state_dict'])
         
-        # Filter: keep only keys that exist in the current model and match in shape.
+        # Only keep keys that exist in the current model and have matching shapes.
         model_state = self.state_dict()
         filtered_state = {k: v for k, v in converted_state.items() 
                         if k in model_state and v.shape == model_state[k].shape}
         
-        # Load the filtered state dict with strict=False so that missing keys are ignored.
+        # Load the filtered state dict with strict=False so missing keys are ignored.
         missing, unexpected = self.load_state_dict(filtered_state, strict=False)
         print(f"Loaded {len(filtered_state)}/{len(converted_state)} compatible parameters")
         print(f"Missing keys: {missing}")

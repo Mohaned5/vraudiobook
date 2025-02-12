@@ -56,7 +56,7 @@ from diffusers.models.unet_2d_blocks import (
     get_up_block,
 )
 
-from consistory_utils import DIFTLatentStore
+from .consistory_utils import DIFTLatentStore
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 

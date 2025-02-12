@@ -29,7 +29,7 @@ from diffusers.utils import (
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from models.pano.consistory_attention_processor import register_extended_self_attn
-from consistory_utils import FeatureInjector, AnchorCache, QueryStore
+from .consistory_utils import FeatureInjector, AnchorCache, QueryStore
 from utils.ptp_utils import AttentionStore
 
 if is_torch_xla_available():

@@ -22,7 +22,7 @@ from typing import Callable, Optional
 import torch
 from diffusers.models.attention_processor import Attention
 
-from consistory_utils import AnchorCache, FeatureInjector, QueryStore, xformers
+from .consistory_utils import AnchorCache, FeatureInjector, QueryStore, xformers
 
 
 class ConsistoryAttnStoreProcessor:

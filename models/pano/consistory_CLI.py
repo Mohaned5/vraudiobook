@@ -5,7 +5,7 @@
 
 import os
 import argparse
-from consistory_run import load_pipeline, run_batch_generation, run_anchor_generation, run_extra_generation
+from .consistory_run import load_pipeline, run_batch_generation, run_anchor_generation, run_extra_generation
 
 def run_batch(gpu, seed=40, mask_dropout=0.5, same_latent=False,
               style="A photo of ", subject="a cute dog", concept_token=['dog'],

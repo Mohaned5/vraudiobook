@@ -6,7 +6,7 @@
 import torch
 from diffusers import DDIMScheduler
 from diffusers.models.unet_2d_condition import UNet2DConditionModel  # SD2.0 UNet
-from .consistory_pipeline import ConsistoryExtendAttnSD2Pipeline  # updated pipeline for SD2.0
+from .consistory_pipeline import ConsistoryExtendAttnSDXLPipeline  # updated pipeline for SD2.0
 from .consistory_utils import FeatureInjector, AnchorCache
 from .general_utils import *
 import gc

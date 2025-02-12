@@ -105,22 +105,25 @@ class PanoGenerator(PanoBase):
                 del checkpoint['state_dict'][key]
 
     def convert_state_dict(self, state_dict):
-        new_state_dict = {}
-        for k, v in state_dict.items():
-            # Remove "_orig_mod" from all keys first
-            new_k = k.replace("._orig_mod", "")
-            
-            # Process LoRA key replacements to match Consistory-integrated processor paths
-            new_k = new_k.replace('to_q.lora_layer', 'processor.to_q_lora')
-            new_k = new_k.replace('to_k.lora_layer', 'processor.to_k_lora')
-            new_k = new_k.replace('to_v.lora_layer', 'processor.to_v_lora')
-            new_k = new_k.replace('to_out.0.lora_layer', 'processor.to_out_lora')
-            
-            # Handle any additional prefixes introduced by Consistory processors if necessary
-            # Example: new_k = new_k.replace('some_consistory_prefix.', '')
-            
-            new_state_dict[new_k] = v
-        return new_state_dict
+            new_state_dict = {}
+            for k, v in state_dict.items():
+                new_k = k
+                # For keys that start with the VAE module (i.e. "vae."), leave them unchanged.
+                if new_k.startswith("vae."):
+                    # If the key includes "_orig_mod" inside the VAE and your current VAE expects it, leave it.
+                    # (If instead your current VAE expects keys without "_orig_mod", you could remove it here.)
+                    pass
+                else:
+                    # For all other parts (e.g. the UNet part in mv_base_model.unet), remove the "._orig_mod" substring.
+                    new_k = new_k.replace("._orig_mod", "")
+                    # Also, rename LoRA keys for consistency:
+                    new_k = new_k.replace('to_q.lora_layer', 'processor.to_q_lora')
+                    new_k = new_k.replace('to_k.lora_layer', 'processor.to_k_lora')
+                    new_k = new_k.replace('to_v.lora_layer', 'processor.to_v_lora')
+                    new_k = new_k.replace('to_out.0.lora_layer', 'processor.to_out_lora')
+                new_state_dict[new_k] = v
+            return new_state_dict
+
 
     def on_load_checkpoint(self, checkpoint):
         self.exclude_eval_metrics(checkpoint)

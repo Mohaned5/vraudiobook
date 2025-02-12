@@ -106,29 +106,21 @@ class PanoGenerator(PanoBase):
 
     def convert_state_dict(self, state_dict):
         new_state_dict = {}
-        print("Converting state dict")
         for k, v in state_dict.items():
-            # For keys in the unet, remove "._orig_mod" while keeping the "mv_base_model.unet" prefix.
-            if k.startswith("mv_base_model.unet._orig_mod"):
-                print(f"Converting key: {k}")
-                new_k = k.replace("mv_base_model.unet._orig_mod", "mv_base_model.unet")
-                print(f"New key: {new_k}")  
-            # Similarly, for keys in pano_unet.
-            elif k.startswith("mv_base_model.pano_unet._orig_mod"):
-                print(f"Converting key: {k}")
-                new_k = k.replace("mv_base_model.pano_unet._orig_mod", "mv_base_model.pano_unet")
-                print(f"New key: {new_k}")
-            else:
-                new_k = k
-
+            # Remove any occurrence of "._orig_mod" regardless of where it appears.
+            new_k = k.replace("._orig_mod", "")
             # Replace LoRA naming conventions.
             new_k = new_k.replace("to_q.lora_layer", "processor.to_q_lora")
             new_k = new_k.replace("to_k.lora_layer", "processor.to_k_lora")
             new_k = new_k.replace("to_v.lora_layer", "processor.to_v_lora")
             new_k = new_k.replace("to_out.0.lora_layer", "processor.to_out_lora")
-
             new_state_dict[new_k] = v
+        # Optional: print any keys that might still have "_orig_mod" for further debugging.
+        for key in new_state_dict.keys():
+            if "._orig_mod" in key:
+                print("WARNING: Key still contains '._orig_mod':", key)
         return new_state_dict
+
 
     def on_load_checkpoint(self, checkpoint):
         self.exclude_eval_metrics(checkpoint)

@@ -11,7 +11,7 @@ import lpips
 from torchvision import transforms
 from torchmetrics.image.fid import FrechetInceptionDistance
 import torchvision.transforms as T
-from consistory_utils import AnchorCache, QueryStore, FeatureInjector
+from .consistory_utils import AnchorCache, QueryStore, FeatureInjector
 
 
 class PanFusion(PanoGenerator):

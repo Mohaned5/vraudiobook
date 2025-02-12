@@ -9,7 +9,7 @@ from collections import defaultdict
 from diffusers.utils.import_utils import is_xformers_available
 from typing import Optional, List
 
-from utils.general_utils import get_dynamic_threshold
+from .general_utils import get_dynamic_threshold
 
 if is_xformers_available():
     import xformers

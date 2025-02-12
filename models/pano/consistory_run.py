@@ -8,7 +8,7 @@ from diffusers import DDIMScheduler
 from .consistory_unet_sdxl import ConsistorySDXLUNet2DConditionModel
 from .consistory_pipeline import ConsistoryExtendAttnSDXLPipeline
 from .consistory_utils import FeatureInjector, AnchorCache
-from utils.general_utils import *
+from .general_utils import *
 import gc
 
 from utils.ptp_utils import view_images

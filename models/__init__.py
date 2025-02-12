@@ -8,3 +8,4 @@ from .pano.consistory_utils import AnchorCache, FeatureInjector, QueryStore, xfo
 from .pano.consistory_unet_sdxl import ConsistorySDXLUNet2DConditionModel
 from .pano.consistory_pipeline import ConsistoryExtendAttnSDXLPipeline
 from .pano.consistory_run import load_pipeline, run_batch_generation, run_anchor_generation, run_extra_generation
+from .pano.consistory_attention_processor import register_extended_self_attn

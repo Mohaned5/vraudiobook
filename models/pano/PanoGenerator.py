@@ -12,7 +12,7 @@ from utils.pano import pad_pano, unpad_pano
 from ..modules.utils import WandbLightningModule
 from diffusers import ControlNetModel
 from .consistory_attention_processor import register_extended_self_attn
-from .consistory_utils import AttentionStore
+from .ptp_utils import AttentionStore
 
 class PanoBase(WandbLightningModule):
     def __init__(

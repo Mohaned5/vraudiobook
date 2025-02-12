@@ -107,6 +107,10 @@ class PanoGenerator(PanoBase):
     def convert_state_dict(self, state_dict):
         new_state_dict = {}
         for k, v in state_dict.items():
+            # Skip SDXL-specific components that don't exist in SD2.0
+            if k.startswith(("vae.", "text_encoder.")):
+                continue
+                
             # Process LoRA key conversions
             new_k = k.replace("._orig_mod", "")
             if "lora_layer" in new_k:
@@ -122,15 +126,17 @@ class PanoGenerator(PanoBase):
         self.exclude_eval_metrics(checkpoint)
         converted_state = self.convert_state_dict(checkpoint['state_dict'])
         
-        # Filter remaining incompatible UNet keys
+        # Filter: keep only keys that exist in the current model and match in shape.
         model_state = self.state_dict()
         filtered_state = {k: v for k, v in converted_state.items() 
                         if k in model_state and v.shape == model_state[k].shape}
         
+        # Load the filtered state dict with strict=False so that missing keys are ignored.
         missing, unexpected = self.load_state_dict(filtered_state, strict=False)
         print(f"Loaded {len(filtered_state)}/{len(converted_state)} compatible parameters")
         print(f"Missing keys: {missing}")
         print(f"Unexpected keys: {unexpected}")
+
 
     def on_save_checkpoint(self, checkpoint):
         self.exclude_eval_metrics(checkpoint)

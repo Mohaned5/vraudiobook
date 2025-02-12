@@ -108,13 +108,13 @@ class PanoGenerator(PanoBase):
         new_state_dict = {}
         for k, v in state_dict.items():
             new_k = k
-            if "lora_layer" in k:
-                # Do the renaming for LoRA keys only
-                new_k = new_k.replace("._orig_mod", "")
-                new_k = new_k.replace("to_q.lora_layer", "processor.to_q_lora")
-                new_k = new_k.replace("to_k.lora_layer", "processor.to_k_lora")
-                new_k = new_k.replace("to_v.lora_layer", "processor.to_v_lora")
-                new_k = new_k.replace("to_out.0.lora_layer", "processor.to_out_lora")
+            # Remove any legacy _orig_mod tokens from both UNet and VAE keys.
+            new_k = new_k.replace("._orig_mod", "")
+            # For UNet LoRA keys, replace the old naming with our processor naming.
+            new_k = new_k.replace('to_q.lora_layer', 'processor.to_q_lora')
+            new_k = new_k.replace('to_k.lora_layer', 'processor.to_k_lora')
+            new_k = new_k.replace('to_v.lora_layer', 'processor.to_v_lora')
+            new_k = new_k.replace('to_out.0.lora_layer', 'processor.to_out_lora')
             new_state_dict[new_k] = v
         return new_state_dict
 
@@ -123,14 +123,13 @@ class PanoGenerator(PanoBase):
 
     def on_load_checkpoint(self, checkpoint):
         self.exclude_eval_metrics(checkpoint)
-        # Convert the state dict keys as needed:
         converted_state = self.convert_state_dict(checkpoint['state_dict'])
-        # Load using strict=False so that missing keys (i.e. new LoRA parameters) are ignored.
         missing_keys, unexpected_keys = self.load_state_dict(converted_state, strict=False)
         if missing_keys:
             print(f"Warning: The following keys are missing and will be randomly initialized: {missing_keys}")
         if unexpected_keys:
-            print(f"Warning: The following keys were unexpected: {unexpected_keys}")
+            print(f"Warning: The following keys were unexpected and will be ignored: {unexpected_keys}")
+
 
 
     def on_save_checkpoint(self, checkpoint):

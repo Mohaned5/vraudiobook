@@ -106,14 +106,18 @@ class PanoGenerator(PanoBase):
 
     def convert_state_dict(self, state_dict):
         new_state_dict = {}
+        print("Converting state dict")
         for k, v in state_dict.items():
             # For keys in the unet, remove "._orig_mod" while keeping the "mv_base_model.unet" prefix.
             if k.startswith("mv_base_model.unet._orig_mod"):
+                print(f"Converting key: {k}")
                 new_k = k.replace("mv_base_model.unet._orig_mod", "mv_base_model.unet")
             # Similarly, for keys in pano_unet.
             elif k.startswith("mv_base_model.pano_unet._orig_mod"):
+                print(f"Converting key: {k}")
                 new_k = k.replace("mv_base_model.pano_unet._orig_mod", "mv_base_model.pano_unet")
             else:
+                print(f"Keeping key: {k}")
                 new_k = k
 
             # Replace LoRA naming conventions.

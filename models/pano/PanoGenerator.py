@@ -181,7 +181,10 @@ class PanoGenerator(PanoBase):
 
         # Create an AttentionStore instance; here we pass a mask_dropout value
         dropout_val = self.hparams.mask_dropout if hasattr(self.hparams, 'mask_dropout') else 0.5
-        self.attnstore = AttentionStore({'mask_dropout': dropout_val})
+        # Create a dummy token_indices tensor (shape: [1,1]) – adjust if you know a better default.
+        dummy_token_indices = torch.zeros(1, 1, dtype=torch.long, device=self.device)
+        self.attnstore = AttentionStore({'mask_dropout': dropout_val, 'token_indices': dummy_token_indices})
+
         
         # Set up extended attention parameters.
         # Here we choose to extend keys/values for UNet “up” blocks, and have the extension active over all timesteps.

@@ -107,17 +107,19 @@ class PanoGenerator(PanoBase):
     def convert_state_dict(self, state_dict):
         new_state_dict = {}
         for k, v in state_dict.items():
-            # Remove "_orig_mod" from all keys first
-            new_k = k.replace("._orig_mod", "")
-            
-            # Process LoRA key replacements
-            new_k = new_k.replace('to_q.lora_layer', 'processor.to_q_lora')
-            new_k = new_k.replace('to_k.lora_layer', 'processor.to_k_lora')
-            new_k = new_k.replace('to_v.lora_layer', 'processor.to_v_lora')
-            new_k = new_k.replace('to_out.0.lora_layer', 'processor.to_out_lora')
-            
-            new_state_dict[new_k] = v
+            # Remove the "mv_base_model." prefix if present.
+            if k.startswith("mv_base_model."):
+                k = k[len("mv_base_model."):]
+            # Remove "._orig_mod" from the key.
+            k = k.replace("._orig_mod", "")
+            # Process LoRA key replacements.
+            k = k.replace("to_q.lora_layer", "processor.to_q_lora")
+            k = k.replace("to_k.lora_layer", "processor.to_k_lora")
+            k = k.replace("to_v.lora_layer", "processor.to_v_lora")
+            k = k.replace("to_out.0.lora_layer", "processor.to_out_lora")
+            new_state_dict[k] = v
         return new_state_dict
+
 
 
 

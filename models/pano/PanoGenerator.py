@@ -90,7 +90,7 @@ class PanoGenerator(PanoBase):
         if ckpt_path is not None:
             print(f"Loading weights from {ckpt_path}")
             state_dict = torch.load(ckpt_path)['state_dict']
-            self.convert_state_dict(state_dict)
+            state_dict = self.convert_state_dict(state_dict)
             try:
                 self.load_state_dict(state_dict, strict=True)
             except RuntimeError as e:
@@ -103,19 +103,19 @@ class PanoGenerator(PanoBase):
                 del checkpoint['state_dict'][key]
 
     def convert_state_dict(self, state_dict):
-        # Remove keys from the original module version
-        keys_to_remove = [k for k in state_dict.keys() if '_orig_mod' in k]
-        for k in keys_to_remove:
-            state_dict.pop(k)
+        # First, filter out any keys that contain "_orig_mod"
+        filtered_state_dict = {k: v for k, v in state_dict.items() if "_orig_mod" not in k}
         
-        # Rename LoRA keys if necessary
-        for old_k in list(state_dict.keys()):
+        # Then, if you need to rename LoRA keys, do so:
+        new_state_dict = {}
+        for old_k, v in filtered_state_dict.items():
             new_k = old_k.replace('to_q.lora_layer', 'processor.to_q_lora')
             new_k = new_k.replace('to_k.lora_layer', 'processor.to_k_lora')
             new_k = new_k.replace('to_v.lora_layer', 'processor.to_v_lora')
             new_k = new_k.replace('to_out.0.lora_layer', 'processor.to_out_lora')
-            if new_k != old_k:
-                state_dict[new_k] = state_dict.pop(old_k)
+            new_state_dict[new_k] = v
+        return new_state_dict
+
 
 
     def on_load_checkpoint(self, checkpoint):

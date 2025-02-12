@@ -103,12 +103,20 @@ class PanoGenerator(PanoBase):
                 del checkpoint['state_dict'][key]
 
     def convert_state_dict(self, state_dict):
+        # Remove keys from the original module version
+        keys_to_remove = [k for k in state_dict.keys() if '_orig_mod' in k]
+        for k in keys_to_remove:
+            state_dict.pop(k)
+        
+        # Rename LoRA keys if necessary
         for old_k in list(state_dict.keys()):
             new_k = old_k.replace('to_q.lora_layer', 'processor.to_q_lora')
             new_k = new_k.replace('to_k.lora_layer', 'processor.to_k_lora')
             new_k = new_k.replace('to_v.lora_layer', 'processor.to_v_lora')
             new_k = new_k.replace('to_out.0.lora_layer', 'processor.to_out_lora')
-            state_dict[new_k] = state_dict.pop(old_k)
+            if new_k != old_k:
+                state_dict[new_k] = state_dict.pop(old_k)
+
 
     def on_load_checkpoint(self, checkpoint):
         self.exclude_eval_metrics(checkpoint)

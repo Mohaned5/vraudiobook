@@ -84,6 +84,8 @@ class ConsistoryExtendAttnSDXLPipeline(StableDiffusionPipeline):
         Note:
           - In SD2.0, only one text encoder is used; prompt_2 and negative_prompt_2 are ignored.
           - The VAE scaling factor should be set in the VAE configuration (commonly 0.18215 in SD2.0).
+
+        Examples:
         """
         callback = kwargs.pop("callback", None)
         callback_steps = kwargs.pop("callback_steps", None)

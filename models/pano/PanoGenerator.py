@@ -108,9 +108,9 @@ class PanoGenerator(PanoBase):
         new_state_dict = {}
         for k, v in state_dict.items():
             new_k = k
-            # Remove any legacy _orig_mod tokens from both UNet and VAE keys.
+            # Remove legacy _orig_mod tokens
             new_k = new_k.replace("._orig_mod", "")
-            # For UNet LoRA keys, replace the old naming with our processor naming.
+            # Rename LoRA keys to the new naming convention
             new_k = new_k.replace('to_q.lora_layer', 'processor.to_q_lora')
             new_k = new_k.replace('to_k.lora_layer', 'processor.to_k_lora')
             new_k = new_k.replace('to_v.lora_layer', 'processor.to_v_lora')
@@ -118,18 +118,30 @@ class PanoGenerator(PanoBase):
             new_state_dict[new_k] = v
         return new_state_dict
 
+    def filter_legacy_keys(self, state_dict):
+        # Remove any keys that still indicate legacy LoRA layers.
+        keys_to_remove = [k for k in state_dict if "lora_layer" in k]
+        for k in keys_to_remove:
+            print(f"Removing legacy key: {k}")
+            state_dict.pop(k)
+        return state_dict
+
+
 
 
 
     def on_load_checkpoint(self, checkpoint):
         self.exclude_eval_metrics(checkpoint)
+        # Convert keys from the legacy checkpoint to our new names.
         converted_state = self.convert_state_dict(checkpoint['state_dict'])
-        missing_keys, unexpected_keys = self.load_state_dict(converted_state, strict=False)
-        if missing_keys:
-            print(f"Warning: The following keys are missing and will be randomly initialized: {missing_keys}")
-        if unexpected_keys:
-            print(f"Warning: The following keys were unexpected and will be ignored: {unexpected_keys}")
-
+        # Filter out any remaining legacy keys.
+        converted_state = self.filter_legacy_keys(converted_state)
+        # Now load with strict=False to ignore any remaining mismatches.
+        load_result = self.load_state_dict(converted_state, strict=False)
+        if load_result.missing_keys:
+            print(f"Warning: Missing keys: {load_result.missing_keys}")
+        if load_result.unexpected_keys:
+            print(f"Warning: Unexpected keys: {load_result.unexpected_keys}")
 
 
     def on_save_checkpoint(self, checkpoint):

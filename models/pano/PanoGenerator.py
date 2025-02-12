@@ -89,7 +89,8 @@ class PanoGenerator(PanoBase):
         self.instantiate_model()
         if ckpt_path is not None:
             print(f"Loading weights from {ckpt_path}")
-            state_dict = torch.load(ckpt_path)['state_dict']
+            checkpoint = torch.load(ckpt_path)
+            state_dict = checkpoint['state_dict']
             state_dict = self.convert_state_dict(state_dict)
             try:
                 self.load_state_dict(state_dict, strict=True)
@@ -97,24 +98,27 @@ class PanoGenerator(PanoBase):
                 print(e)
                 self.load_state_dict(state_dict, strict=False)
 
+
     def exclude_eval_metrics(self, checkpoint):
         for key in list(checkpoint['state_dict'].keys()):
             if key.startswith('eval_metrics'):
                 del checkpoint['state_dict'][key]
 
     def convert_state_dict(self, state_dict):
-        # First, filter out any keys that contain "_orig_mod"
+        # Filter out any keys that contain "_orig_mod"
         filtered_state_dict = {k: v for k, v in state_dict.items() if "_orig_mod" not in k}
         
-        # Then, if you need to rename LoRA keys, do so:
+        # Now, rename any keys as needed for LoRA layers
         new_state_dict = {}
         for old_k, v in filtered_state_dict.items():
-            new_k = old_k.replace('to_q.lora_layer', 'processor.to_q_lora')
+            new_k = old_k
+            new_k = new_k.replace('to_q.lora_layer', 'processor.to_q_lora')
             new_k = new_k.replace('to_k.lora_layer', 'processor.to_k_lora')
             new_k = new_k.replace('to_v.lora_layer', 'processor.to_v_lora')
             new_k = new_k.replace('to_out.0.lora_layer', 'processor.to_out_lora')
             new_state_dict[new_k] = v
         return new_state_dict
+
 
 
 

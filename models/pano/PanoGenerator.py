@@ -107,10 +107,6 @@ class PanoGenerator(PanoBase):
     def convert_state_dict(self, state_dict):
         new_state_dict = {}
         for k, v in state_dict.items():
-            # Skip SDXL-specific components that don't exist in SD2.0
-            if k.startswith(("vae.", "text_encoder.")):
-                continue
-                
             # Process LoRA key conversions
             new_k = k.replace("._orig_mod", "")
             if "lora_layer" in new_k:

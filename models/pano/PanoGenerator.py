@@ -107,14 +107,15 @@ class PanoGenerator(PanoBase):
     def convert_state_dict(self, state_dict):
         new_state_dict = {}
         for k, v in state_dict.items():
-            # Skip any keys that contain the unwanted substring.
-            if "_orig_mod" in k or "unet._orig_mod" in k:
-                continue
-            # Otherwise, rename LoRA keys if needed.
-            new_k = k.replace('to_q.lora_layer', 'processor.to_q_lora')
+            # Remove "_orig_mod" from all keys first
+            new_k = k.replace("._orig_mod", "")
+            
+            # Process LoRA key replacements
+            new_k = new_k.replace('to_q.lora_layer', 'processor.to_q_lora')
             new_k = new_k.replace('to_k.lora_layer', 'processor.to_k_lora')
             new_k = new_k.replace('to_v.lora_layer', 'processor.to_v_lora')
             new_k = new_k.replace('to_out.0.lora_layer', 'processor.to_out_lora')
+            
             new_state_dict[new_k] = v
         return new_state_dict
 

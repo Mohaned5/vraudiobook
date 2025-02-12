@@ -108,25 +108,30 @@ class PanoGenerator(PanoBase):
         new_state_dict = {}
         for k, v in state_dict.items():
             new_k = k
-            # Only adjust keys that have "lora_layer" in them.
             if "lora_layer" in k:
-                # Remove the "._orig_mod" substring if present
+                # Do the renaming for LoRA keys only
                 new_k = new_k.replace("._orig_mod", "")
-                # Rename the LoRA keys to match the Consistory-integrated processor naming
                 new_k = new_k.replace("to_q.lora_layer", "processor.to_q_lora")
                 new_k = new_k.replace("to_k.lora_layer", "processor.to_k_lora")
                 new_k = new_k.replace("to_v.lora_layer", "processor.to_v_lora")
                 new_k = new_k.replace("to_out.0.lora_layer", "processor.to_out_lora")
-            # Otherwise, leave the key unchanged.
             new_state_dict[new_k] = v
         return new_state_dict
 
 
 
+
     def on_load_checkpoint(self, checkpoint):
         self.exclude_eval_metrics(checkpoint)
-        # Assign the converted state_dict back to the checkpoint
-        checkpoint['state_dict'] = self.convert_state_dict(checkpoint['state_dict'])
+        # Convert the state dict keys as needed:
+        converted_state = self.convert_state_dict(checkpoint['state_dict'])
+        # Load using strict=False so that missing keys (i.e. new LoRA parameters) are ignored.
+        missing_keys, unexpected_keys = self.load_state_dict(converted_state, strict=False)
+        if missing_keys:
+            print(f"Warning: The following keys are missing and will be randomly initialized: {missing_keys}")
+        if unexpected_keys:
+            print(f"Warning: The following keys were unexpected: {unexpected_keys}")
+
 
     def on_save_checkpoint(self, checkpoint):
         self.exclude_eval_metrics(checkpoint)

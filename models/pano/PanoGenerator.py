@@ -112,12 +112,13 @@ class PanoGenerator(PanoBase):
             if k.startswith("mv_base_model.unet._orig_mod"):
                 print(f"Converting key: {k}")
                 new_k = k.replace("mv_base_model.unet._orig_mod", "mv_base_model.unet")
+                print(f"New key: {new_k}")  
             # Similarly, for keys in pano_unet.
             elif k.startswith("mv_base_model.pano_unet._orig_mod"):
                 print(f"Converting key: {k}")
                 new_k = k.replace("mv_base_model.pano_unet._orig_mod", "mv_base_model.pano_unet")
+                print(f"New key: {new_k}")
             else:
-                print(f"Keeping key: {k}")
                 new_k = k
 
             # Replace LoRA naming conventions.

@@ -93,7 +93,7 @@ class PanoGenerator(PanoBase):
             state_dict = checkpoint['state_dict']
             state_dict = self.convert_state_dict(state_dict)
             try:
-                self.load_state_dict(state_dict, strict=True)
+                self.load_state_dict(state_dict, strict=False)
             except RuntimeError as e:
                 print(e)
                 self.load_state_dict(state_dict, strict=False)

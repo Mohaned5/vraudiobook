@@ -104,23 +104,29 @@ class PanoGenerator(PanoBase):
             if key.startswith('eval_metrics'):
                 del checkpoint['state_dict'][key]
 
-    def convert_state_dict(self, state_dict):
-        new_state_dict = {}
-        for k, v in state_dict.items():
-            # Skip keys for the VAE and text encoder since SD2.0 uses its own components
-            if k.startswith("vae.") or k.startswith("text_encoder."):
-                continue
+    def on_load_checkpoint(self, checkpoint):
+        self.exclude_eval_metrics(checkpoint)
+        converted_state = self.convert_state_dict(checkpoint['state_dict'])
+        
+        # Get the current model state
+        model_state = self.state_dict()
+        
+        # For keys that are missing and belong to VAE or text_encoder, fill in from the current model.
+        for key in model_state:
+            if key.startswith("vae.") or key.startswith("text_encoder."):
+                if key not in converted_state:
+                    converted_state[key] = model_state[key]
+        
+        # Filter: only keep keys that exist in the current model and whose shapes match.
+        filtered_state = {
+            k: v for k, v in converted_state.items()
+            if k in model_state and v.shape == model_state[k].shape
+        }
+        
+        # Now load the state dict with strict=False.
+        _ = self.load_state_dict(filtered_state, strict=False)
+        print(f"Loaded {len(filtered_state)} parameters (ignoring missing keys).")
 
-            # Remove any extra prefix (e.g. "._orig_mod")
-            new_k = k.replace("._orig_mod", "")
-            # Remap LoRA keys if present
-            if "lora_layer" in new_k:
-                new_k = new_k.replace("to_q.lora_layer", "processor.to_q_lora")
-                new_k = new_k.replace("to_k.lora_layer", "processor.to_k_lora")
-                new_k = new_k.replace("to_v.lora_layer", "processor.to_v_lora")
-                new_k = new_k.replace("to_out.0.lora_layer", "processor.to_out_lora")
-            new_state_dict[new_k] = v
-        return new_state_dict
 
 
     def on_load_checkpoint(self, checkpoint):
@@ -137,14 +143,6 @@ class PanoGenerator(PanoBase):
         print(f"Loaded {len(filtered_state)}/{len(converted_state)} compatible parameters")
         print(f"Missing keys: {missing}")
         print(f"Unexpected keys: {unexpected}")
-
-    def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict,
-                          missing_keys, unexpected_keys, error_msgs):
-        # Force strict to False regardless of what is passed
-        super()._load_from_state_dict(state_dict, prefix, local_metadata, False,
-                                    missing_keys, unexpected_keys, error_msgs)
-
-
 
     def on_save_checkpoint(self, checkpoint):
         self.exclude_eval_metrics(checkpoint)

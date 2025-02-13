@@ -127,24 +127,17 @@ class PanoGenerator(PanoBase):
         self.exclude_eval_metrics(checkpoint)
         converted_state = self.convert_state_dict(checkpoint['state_dict'])
         
-        # Get the current model state
+        # Filter: keep only keys that exist in the current model and match in shape.
         model_state = self.state_dict()
+        filtered_state = {k: v for k, v in converted_state.items() 
+                        if k in model_state and v.shape == model_state[k].shape}
         
-        # For keys that are missing and belong to VAE or text_encoder, fill in from the current model.
-        for key in model_state:
-            if key.startswith("vae.") or key.startswith("text_encoder."):
-                if key not in converted_state:
-                    converted_state[key] = model_state[key]
-        
-        # Filter: only keep keys that exist in the current model and whose shapes match.
-        filtered_state = {
-            k: v for k, v in converted_state.items()
-            if k in model_state and v.shape == model_state[k].shape
-        }
-        
-        # Now load the state dict with strict=False.
-        _ = self.load_state_dict(filtered_state, strict=False)
-        print(f"Loaded {len(filtered_state)} parameters (ignoring missing keys).")
+        # Load the filtered state dict with strict=False so that missing keys are ignored.
+        missing, unexpected = self.load_state_dict(filtered_state, strict=False)
+        print(f"Loaded {len(filtered_state)}/{len(converted_state)} compatible parameters")
+        print(f"Missing keys: {missing}")
+        print(f"Unexpected keys: {unexpected}")
+
 
     def on_save_checkpoint(self, checkpoint):
         self.exclude_eval_metrics(checkpoint)

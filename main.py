@@ -62,7 +62,7 @@ def cli_main():
         seed_everything_default=os.environ.get("LOCAL_RANK", 0),
         trainer_defaults={
             'strategy': 'ddp',
-            'log_every_n_steps': 10,
+            'log_every_n_steps': 5,
             'num_sanity_val_steps': 0,
             'check_val_every_n_epoch': 10,
             'limit_val_batches': 100,

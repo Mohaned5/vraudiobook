@@ -138,6 +138,13 @@ class PanoGenerator(PanoBase):
         print(f"Missing keys: {missing}")
         print(f"Unexpected keys: {unexpected}")
 
+    def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict,
+                          missing_keys, unexpected_keys, error_msgs):
+        # Force strict to False regardless of what is passed
+        super()._load_from_state_dict(state_dict, prefix, local_metadata, False,
+                                    missing_keys, unexpected_keys, error_msgs)
+
+
 
     def on_save_checkpoint(self, checkpoint):
         self.exclude_eval_metrics(checkpoint)

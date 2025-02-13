@@ -107,18 +107,23 @@ class PanoGenerator(PanoBase):
     def convert_state_dict(self, state_dict):
         new_state_dict = {}
         for k, v in state_dict.items():
-            # Skip keys for the VAE and text encoder since SD2.0 uses its own components
-            if k.startswith("vae.") or k.startswith("text_encoder."):
+            # Handle possible prefixes (e.g., 'model.' from Lightning or other wrappers)
+            stripped_k = k.replace("model.", "")  # Remove 'model.' prefix if present
+            
+            # Skip VAE and text_encoder keys under any prefix
+            if stripped_k.startswith("vae.") or stripped_k.startswith("text_encoder."):
                 continue
-
-            # Remove any extra prefix (e.g. "._orig_mod")
-            new_k = k.replace("._orig_mod", "")
-            # Remap LoRA keys if present
+            
+            # Remove any other prefixes (e.g., from DDP or _orig_mod)
+            new_k = stripped_k.replace("._orig_mod", "")
+            
+            # Remap LoRA keys if necessary
             if "lora_layer" in new_k:
                 new_k = new_k.replace("to_q.lora_layer", "processor.to_q_lora")
                 new_k = new_k.replace("to_k.lora_layer", "processor.to_k_lora")
                 new_k = new_k.replace("to_v.lora_layer", "processor.to_v_lora")
                 new_k = new_k.replace("to_out.0.lora_layer", "processor.to_out_lora")
+            
             new_state_dict[new_k] = v
         return new_state_dict
 

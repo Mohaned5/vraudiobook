@@ -88,15 +88,8 @@ class PanoGenerator(PanoBase):
         self.load_shared()
         self.instantiate_model()
         if ckpt_path is not None:
-            print(f"Loading weights from {ckpt_path}")
-            checkpoint = torch.load(ckpt_path)
-            state_dict = checkpoint['state_dict']
-            state_dict = self.convert_state_dict(state_dict)
-            try:
-                self.load_unet_checkpoint(ckpt_path)
-            except RuntimeError as e:
-                print(e)
-                self.load_unet_checkpoint(ckpt_path)
+            print(f"Loading UNet weights from {ckpt_path}")
+            self.load_unet_checkpoint(ckpt_path)
 
     def load_unet_checkpoint(self, ckpt_path):
         print(f"Loading UNet weights from {ckpt_path}")

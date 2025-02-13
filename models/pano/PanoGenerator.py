@@ -93,11 +93,42 @@ class PanoGenerator(PanoBase):
             state_dict = checkpoint['state_dict']
             state_dict = self.convert_state_dict(state_dict)
             try:
-                self.load_state_dict(state_dict, strict=False)
+                self.load_unet_checkpoint(ckpt_path)
             except RuntimeError as e:
                 print(e)
-                self.load_state_dict(state_dict, strict=False)
+                self.load_unet_checkpoint(ckpt_path)
 
+    def load_unet_checkpoint(self, ckpt_path):
+        print(f"Loading UNet weights from {ckpt_path}")
+        checkpoint = torch.load(ckpt_path, map_location=self.device)
+        state_dict = checkpoint['state_dict']
+        
+        # Convert the checkpoint state dict:
+        # Remove keys for the VAE and text encoder, and adjust any LoRA key naming if needed.
+        converted_state = {}
+        for k, v in state_dict.items():
+            if k.startswith("vae.") or k.startswith("text_encoder."):
+                continue
+            new_k = k.replace("._orig_mod", "")
+            if "lora_layer" in new_k:
+                new_k = new_k.replace("to_q.lora_layer", "processor.to_q_lora")
+                new_k = new_k.replace("to_k.lora_layer", "processor.to_k_lora")
+                new_k = new_k.replace("to_v.lora_layer", "processor.to_v_lora")
+                new_k = new_k.replace("to_out.0.lora_layer", "processor.to_out_lora")
+            converted_state[new_k] = v
+
+        # Filter: keep only keys that exist in the UNet state and match in shape.
+        unet_state = self.unet.state_dict()
+        filtered_state = {
+            k: v
+            for k, v in converted_state.items()
+            if k in unet_state and v.shape == unet_state[k].shape
+        }
+        
+        missing, unexpected = self.unet.load_state_dict(filtered_state, strict=False)
+        print(f"Loaded {len(filtered_state)} UNet parameters.")
+        print(f"Missing keys (expected from UNet): {missing}")
+        print(f"Unexpected keys: {unexpected}")
 
     def exclude_eval_metrics(self, checkpoint):
         for key in list(checkpoint['state_dict'].keys()):

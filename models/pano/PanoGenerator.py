@@ -48,14 +48,38 @@ class PanoBase(WandbLightningModule):
             pano_prompt = ['. '.join(p1) if p2 else '' for p1, p2 in zip(prompts, batch['pano_prompt'])]
         else:
             pano_prompt = batch['pano_prompt']
-        return self.add_pano_prompt_prefix(pano_prompt)
+        
+        pano_prompt = self.add_pano_prompt_prefix(pano_prompt)
+        pano_prompt = self.replace_identity_phrases(pano_prompt)
+        return pano_prompt
 
     def get_pers_prompt(self, batch):
         if self.hparams.copy_pano_prompt:
             prompts = sum([[p] * batch['cameras']['height'].shape[-1] for p in batch['pano_prompt']], [])
         else:
             prompts = sum(map(list, zip(*batch['prompt'])), [])
-        return self.add_pers_prompt_prefix(prompts)
+        prompts = self.add_pers_prompt_prefix(prompts)
+        prompts = self.replace_identity_phrases(prompts)
+        return prompts
+    
+    def replace_identity_phrases(self, prompt):
+        replacements = {
+            "a person": "v1* v2*",
+            "a man": "v1* v2*",
+            "a woman": "v1* v2*",
+            "a boy": "v1* v2*",
+            "a girl": "v1* v2*"
+        }
+        if isinstance(prompt, str):
+            for phrase, token in replacements.items():
+                prompt = prompt.replace(phrase, token)
+            return prompt
+        elif isinstance(prompt, list):
+            return [self.replace_identity_phrases(p) for p in prompt]
+        else:
+            return prompt
+
+
 
 
 class PanoGenerator(PanoBase):

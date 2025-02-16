@@ -178,8 +178,35 @@ class PanFusion(PanoGenerator):
         cameras['theta'] = (cameras['theta'] + degree) % 360
         return pano_latent, cameras
 
+    def inject_identity_embeddings(self, identity_embedding_path):
+        """
+        Load the identity embeddings from a file and inject them into the text encoder.
+        The identity embeddings are expected to be a tensor of shape [1, 2, embedding_dim],
+        where the two vectors correspond to the tokens "v1*" and "v2*".
+        """
+        # Load the pretrained identity embeddings (from CharacterFactory)
+        identity_embeddings = torch.load(identity_embedding_path, map_location=self.device)
+        # Assume shape is [1, 2, embedding_dim]
+        v1_emb = identity_embeddings[:, 0]  # shape: [1, embedding_dim]
+        v2_emb = identity_embeddings[:, 1]
+        
+        # Add the special tokens to the tokenizer
+        tokens = ["v1*", "v2*"]
+        self.tokenizer.add_tokens(tokens)
+        token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
+        
+        # Resize the text encoder embeddings to accommodate the new tokens
+        self.text_encoder.resize_token_embeddings(len(self.tokenizer), pad_to_multiple_of=8)
+        
+        # Update the embeddings for the special tokens with our identity embeddings
+        for token_id, embedding in zip(token_ids, [v1_emb, v2_emb]):
+            self.text_encoder.get_input_embeddings().weight.data[token_id] = embedding
+
+
     @torch.no_grad()
     def inference(self, batch):
+        identity_embedding_path = "/logs/character_factory_weights/man.pt" 
+        self.inject_identity_embeddings(identity_embedding_path)
         bs, m = batch['cameras']['height'].shape[:2]
         h, w = batch['cameras']['height'][0, 0].item(), batch['cameras']['width'][0, 0].item()
 

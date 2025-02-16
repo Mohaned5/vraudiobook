@@ -205,7 +205,7 @@ class PanFusion(PanoGenerator):
 
     @torch.no_grad()
     def inference(self, batch):
-        identity_embedding_path = "/logs/character_factory_weights/man.pt" 
+        identity_embedding_path = os.path.join(os.path.dirname(__file__), "logs/character_factory_weights/man.pt")
         self.inject_identity_embeddings(identity_embedding_path)
         bs, m = batch['cameras']['height'].shape[:2]
         h, w = batch['cameras']['height'][0, 0].item(), batch['cameras']['width'][0, 0].item()

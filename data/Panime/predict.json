@@ -2,12 +2,27 @@
   {
     "scene_id": "15",
     "view_id": "1",
-    "pano_prompt": "A close-up portrait of a person in shining knight's armor, with a determined expression and intricate engravings on the metal"
+    "pano_prompt": "A person"
+  },
+  {
+    "scene_id": "15",
+    "view_id": "2",
+    "pano_prompt": "A person"
+  },
+  {
+    "scene_id": "15",
+    "view_id": "3",
+    "pano_prompt": "A person"
+  },
+  {
+    "scene_id": "15",
+    "view_id": "4",
+    "pano_prompt": "A person"
   },
   {
     "scene_id": "16",
-    "view_id": "1",
-    "pano_prompt": "A person sitting by a window in a dimly lit medieval inn, their face illuminated by candlelight, deep in thought"
+    "view_id": "5",
+    "pano_prompt": "A person"
   },
   {
     "scene_id": "17",

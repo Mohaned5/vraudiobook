@@ -199,7 +199,7 @@ class PanFusion(PanoGenerator):
             # 2) Create or reuse the EmbeddingManager (same as test.py)
             if not hasattr(self, "Embedding_Manager"):
                 # Load the manager config
-                embedding_manager_config = OmegaConf.load("datasets_face/identity_space.yaml")
+                embedding_manager_config = OmegaConf.load("models/cgen/datasets_face/identity_space.yaml")
 
                 # e.g. "man_GAN" if you want a male character
                 # Adjust this if you need "normal_GAN" or "woman_GAN"

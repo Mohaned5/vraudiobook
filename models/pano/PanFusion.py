@@ -214,6 +214,8 @@ class PanFusion(PanoGenerator):
         # Slice out the two embeddings.
         v1_emb = identity_embeddings[:, 0]  # shape: [1, embedding_dim]
         v2_emb = identity_embeddings[:, 1]
+        print("v1* embedding stats:", v1_emb.mean().item(), v1_emb.std().item())
+        print("v2* embedding stats:", v2_emb.mean().item(), v2_emb.std().item())    
         
         # Add the special tokens to the tokenizer.
         tokens = ["v1*", "v2*"]

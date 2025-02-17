@@ -204,7 +204,7 @@ class PanFusion(PanoGenerator):
         print("Determined input dimension:", input_dim)
         
         # Create a random latent vector with shape [1, input_dim]
-        latent = torch.randn(1, input_dim, device=self.device)
+        latent = torch.ones(1, input_dim, device=self.device)  # Use a constant tensor
         
         # Run the forward pass to compute identity embeddings.
         # The output should have shape [1, 2, embedding_dim]

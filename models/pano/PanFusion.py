@@ -188,28 +188,34 @@ class PanFusion(PanoGenerator):
         """
         Load the identity embeddings from a file using the CharacterFactory
         EmbeddingManager, and inject them into the text encoder tokens "v1*" & "v2*".
-        Replicates the hooking and manager usage from test.py.
+        Replicates the hooking and manager usage from test.py, with added print statements.
         """
+        print(f"[DEBUG] inject_identity_embeddings called with path: {identity_embedding_path}")
 
         # 1) Hook the text encoder so the manager's forward logic can intercept placeholders
+        print("[DEBUG] Hooking the text encoder's embeddings.forward now.")
         self.original_forward = self.text_encoder.text_model.embeddings.forward
         self.text_encoder.text_model.embeddings.forward = embedding_forward.__get__(self.text_encoder.text_model.embeddings)
+        print("[DEBUG] Hooking complete.")
 
         try:
-            # 2) Create or reuse the EmbeddingManager (same as test.py)
+            # 2) Create or reuse the EmbeddingManager
             if not hasattr(self, "Embedding_Manager"):
-                # Load the manager config
+                print("[DEBUG] No Embedding_Manager attribute found. Creating one now.")
+
+                from omegaconf import OmegaConf
+                import models.cgen.embedding_manager
+                from models.celeb_embeddings import embedding_forward  # ensure it's imported
+
                 embedding_manager_config = OmegaConf.load("models/cgen/datasets_face/identity_space.yaml")
+                experiment_name = "man_GAN"  # Adjust if needed
 
-                # e.g. "man_GAN" if you want a male character
-                # Adjust this if you need "normal_GAN" or "woman_GAN"
-                experiment_name = "man_GAN"
-
+                print(f"[DEBUG] Instantiating EmbeddingManagerId_adain with experiment_name={experiment_name}")
                 self.Embedding_Manager = models.cgen.embedding_manager.EmbeddingManagerId_adain(
                     tokenizer=self.tokenizer,
                     text_encoder=self.text_encoder,
                     device=self.device,
-                    training=True,        # replicate test.py
+                    training=True,  # replicate test.py
                     experiment_name=experiment_name,
                     num_embeds_per_token=embedding_manager_config.model.personalization_config.params.num_embeds_per_token,
                     token_dim=embedding_manager_config.model.personalization_config.params.token_dim,
@@ -217,15 +223,18 @@ class PanFusion(PanoGenerator):
                     loss_type=embedding_manager_config.model.personalization_config.params.loss_type,
                     vit_out_dim=embedding_manager_config.model.personalization_config.params.vit_out_dim,
                 )
-                # Load the manager weights
+                print(f"[DEBUG] Loading Embedding_Manager weights from: {identity_embedding_path}")
                 self.Embedding_Manager.load(identity_embedding_path)
+            else:
+                print("[DEBUG] Reusing existing Embedding_Manager on self.")
 
             # 3) Sample random latent
-            # (This matches the lines in test.py: random_embedding = torch.randn(1, 1, input_dim).to(device))
-            input_dim = 64  # typically the same dimension you used in test.py
+            input_dim = 64  # typically the dimension from test.py
+            print(f"[DEBUG] Sampling random latent of shape [1, 1, {input_dim}]")
             random_embedding = torch.randn(1, 1, input_dim, device=self.device)
 
-            # 4) Let the manager produce final [1, 2, 1024] embeddings
+            # 4) Call Embedding_Manager to produce final [1, 2, 1024] embeddings (commonly).
+            print("[DEBUG] Calling self.Embedding_Manager(...) to obtain 'adained_total_embedding'")
             _, emb_dict = self.Embedding_Manager(
                 tokenized_text=None,
                 embedded_text=None,
@@ -233,27 +242,34 @@ class PanFusion(PanoGenerator):
                 random_embeddings=random_embedding,
                 timesteps=None
             )
-
-            test_emb = emb_dict["adained_total_embedding"].to(self.device)  # shape [1, 2, 1024] (typically)
-            print("Generated identity embeddings:", test_emb.shape)
+            test_emb = emb_dict["adained_total_embedding"].to(self.device)
+            print(f"[DEBUG] test_emb shape: {list(test_emb.shape)}")
 
             v1_emb = test_emb[:, 0]
             v2_emb = test_emb[:, 1]
+            print(f"[DEBUG] v1_emb -> mean={v1_emb.mean().item():.4f}, std={v1_emb.std().item():.4f}")
+            print(f"[DEBUG] v2_emb -> mean={v2_emb.mean().item():.4f}, std={v2_emb.std().item():.4f}")
 
             # 5) Insert them for tokens "v1*" and "v2*"
             tokens = ["v1*", "v2*"]
+            print(f"[DEBUG] Adding tokens {tokens} to tokenizer.")
             self.tokenizer.add_tokens(tokens)
             token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
 
+            print(f"[DEBUG] Resizing text_encoder token embeddings to len={len(self.tokenizer)}.")
             self.text_encoder.resize_token_embeddings(len(self.tokenizer))
+
+            print("[DEBUG] Injecting v1* and v2* embeddings into text_encoder.")
             self.text_encoder.get_input_embeddings().weight.data[token_ids[0]] = v1_emb
             self.text_encoder.get_input_embeddings().weight.data[token_ids[1]] = v2_emb
 
-            print("Injected v1* & v2* embeddings into text encoder.")
+            print("[DEBUG] Done injecting identity embeddings into text encoder.")
 
         finally:
-            # Always revert hooking so it doesn't stay patched if you call injection multiple times
+            # Always revert hooking
+            print("[DEBUG] Reverting text_encoder.text_model.embeddings.forward to original.")
             self.text_encoder.text_model.embeddings.forward = self.original_forward
+            print("[DEBUG] Hook revert complete.")
 
 
 

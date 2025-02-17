@@ -11,7 +11,7 @@ import lpips
 from torchvision import transforms
 from torchmetrics.image.fid import FrechetInceptionDistance
 import torchvision.transforms as T
-
+import sys
 
 class PanFusion(PanoGenerator):
     def __init__(
@@ -186,7 +186,10 @@ class PanFusion(PanoGenerator):
         """
         # Load the pretrained identity embeddings (from CharacterFactory)
         identity_embeddings = torch.load(identity_embedding_path, map_location=self.device)
-        # Assume shape is [1, 2, embedding_dim]
+       	print("Loaded identity_embeddings type:", type(identity_embeddings))
+	print(identity_embeddings)
+
+	 # Assume shape is [1, 2, embedding_dim]
         v1_emb = identity_embeddings[:, 0]  # shape: [1, embedding_dim]
         v2_emb = identity_embeddings[:, 1]
         
@@ -205,6 +208,8 @@ class PanFusion(PanoGenerator):
 
     @torch.no_grad()
     def inference(self, batch):
+        if "models.id_embedding" not in sys.modules:
+            sys.modules["models.id_embedding"] = sys.modules["models.cgen.id_embedding"]
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")) 
         identity_embedding_path = os.path.join(base_dir, "logs/character_factory_weights/man.pt")
         self.inject_identity_embeddings(identity_embedding_path)

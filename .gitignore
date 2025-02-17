@@ -226,3 +226,5 @@ pyrightconfig.json
 *.zip
 *.ckpt
 __pycache__
+
+logs/*

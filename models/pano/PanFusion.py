@@ -218,7 +218,7 @@ class PanFusion(PanoGenerator):
         token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
         
         # Resize the text encoder's embedding matrix to include the new tokens.
-        self.text_encoder.resize_token_embeddings(len(self.tokenizer), pad_to_multiple_of=8)
+        self.text_encoder.resize_token_embeddings(len(self.tokenizer))
         
         # Inject the computed embeddings into the text encoder.
         for token_id, embedding in zip(token_ids, [v1_emb, v2_emb]):

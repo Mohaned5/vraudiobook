@@ -12,6 +12,9 @@ from torchvision import transforms
 from torchmetrics.image.fid import FrechetInceptionDistance
 import torchvision.transforms as T
 import sys
+from models.cgen.celeb_embeddings import embedding_forward
+import models.cgen.embedding_manager
+from omegaconf import OmegaConf
 
 class PanFusion(PanoGenerator):
     def __init__(
@@ -183,51 +186,74 @@ class PanFusion(PanoGenerator):
 
     def inject_identity_embeddings(self, identity_embedding_path):
         """
-        Load the identity embeddings from a file and inject them into the text encoder.
-        The saved file under "name_projection_layer" is a StyleVectorizer module.
-        We run a forward pass with a random latent vector to obtain the actual identity embeddings,
-        expected to be a tensor of shape [1, 2, embedding_dim].
+        Load the identity embeddings from a file using the CharacterFactory
+        EmbeddingManager, and inject them into the text encoder tokens "v1*" & "v2*".
+        Replicates the hooking and manager usage from test.py.
         """
-        # Load the dictionary from file
-        identity_dict = torch.load(identity_embedding_path, map_location=self.device)
-        print("Loaded dictionary keys:", identity_dict.keys())
-        
-        # Extract the StyleVectorizer module
-        style_vectorizer = identity_dict.get("name_projection_layer")
-        if style_vectorizer is None:
-            raise KeyError("Key 'name_projection_layer' not found in the loaded dictionary.")
-        print("Type of name_projection_layer:", type(style_vectorizer))
-        
-        # Determine the expected input dimension.
-        # For example, if the first layer's weight has shape [2048, 64], then input_dim = 64.
-        input_dim = style_vectorizer.state_dict()['net.0.weight'].shape[1]
-        print("Determined input dimension:", input_dim)
-        
-        # Create a random latent vector with shape [1, input_dim]
-        latent = torch.ones(1, input_dim, device=self.device)  # Use a constant tensor
-        
-        # Run the forward pass to compute identity embeddings.
-        # The output should have shape [1, 2, embedding_dim]
-        identity_embeddings = style_vectorizer(latent)
-        print("Computed identity_embeddings shape:", identity_embeddings.shape)
-        
-        # Slice out the two embeddings.
-        v1_emb = identity_embeddings[:, 0]  # shape: [1, embedding_dim]
-        v2_emb = identity_embeddings[:, 1]
-        print("v1* embedding stats:", v1_emb.mean().item(), v1_emb.std().item())
-        print("v2* embedding stats:", v2_emb.mean().item(), v2_emb.std().item())    
-        
-        # Add the special tokens to the tokenizer.
-        tokens = ["v1*", "v2*"]
-        self.tokenizer.add_tokens(tokens)
-        token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
-        
-        # Resize the text encoder's embedding matrix to include the new tokens.
-        self.text_encoder.resize_token_embeddings(len(self.tokenizer))
-        
-        # Inject the computed embeddings into the text encoder.
-        for token_id, embedding in zip(token_ids, [v1_emb, v2_emb]):
-            self.text_encoder.get_input_embeddings().weight.data[token_id] = embedding
+
+        # 1) Hook the text encoder so the manager's forward logic can intercept placeholders
+        self.original_forward = self.text_encoder.text_model.embeddings.forward
+        self.text_encoder.text_model.embeddings.forward = embedding_forward.__get__(self.text_encoder.text_model.embeddings)
+
+        try:
+            # 2) Create or reuse the EmbeddingManager (same as test.py)
+            if not hasattr(self, "Embedding_Manager"):
+                # Load the manager config
+                embedding_manager_config = OmegaConf.load("datasets_face/identity_space.yaml")
+
+                # e.g. "man_GAN" if you want a male character
+                # Adjust this if you need "normal_GAN" or "woman_GAN"
+                experiment_name = "man_GAN"
+
+                self.Embedding_Manager = models.embedding_manager.EmbeddingManagerId_adain(
+                    tokenizer=self.tokenizer,
+                    text_encoder=self.text_encoder,
+                    device=self.device,
+                    training=True,        # replicate test.py
+                    experiment_name=experiment_name,
+                    num_embeds_per_token=embedding_manager_config.model.personalization_config.params.num_embeds_per_token,
+                    token_dim=embedding_manager_config.model.personalization_config.params.token_dim,
+                    mlp_depth=embedding_manager_config.model.personalization_config.params.mlp_depth,
+                    loss_type=embedding_manager_config.model.personalization_config.params.loss_type,
+                    vit_out_dim=embedding_manager_config.model.personalization_config.params.vit_out_dim,
+                )
+                # Load the manager weights
+                self.Embedding_Manager.load(identity_embedding_path)
+
+            # 3) Sample random latent
+            # (This matches the lines in test.py: random_embedding = torch.randn(1, 1, input_dim).to(device))
+            input_dim = 64  # typically the same dimension you used in test.py
+            random_embedding = torch.randn(1, 1, input_dim, device=self.device)
+
+            # 4) Let the manager produce final [1, 2, 1024] embeddings
+            _, emb_dict = self.Embedding_Manager(
+                tokenized_text=None,
+                embedded_text=None,
+                name_batch=None,
+                random_embeddings=random_embedding,
+                timesteps=None
+            )
+
+            test_emb = emb_dict["adained_total_embedding"].to(self.device)  # shape [1, 2, 1024] (typically)
+            print("Generated identity embeddings:", test_emb.shape)
+
+            v1_emb = test_emb[:, 0]
+            v2_emb = test_emb[:, 1]
+
+            # 5) Insert them for tokens "v1*" and "v2*"
+            tokens = ["v1*", "v2*"]
+            self.tokenizer.add_tokens(tokens)
+            token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
+
+            self.text_encoder.resize_token_embeddings(len(self.tokenizer))
+            self.text_encoder.get_input_embeddings().weight.data[token_ids[0]] = v1_emb
+            self.text_encoder.get_input_embeddings().weight.data[token_ids[1]] = v2_emb
+
+            print("Injected v1* & v2* embeddings into text encoder.")
+
+        finally:
+            # Always revert hooking so it doesn't stay patched if you call injection multiple times
+            self.text_encoder.text_model.embeddings.forward = self.original_forward
 
 
 

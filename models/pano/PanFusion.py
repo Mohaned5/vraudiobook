@@ -184,14 +184,25 @@ class PanFusion(PanoGenerator):
         The identity embeddings are expected to be a tensor of shape [1, 2, embedding_dim],
         where the two vectors correspond to the tokens "v1*" and "v2*".
         """
-        # Load the pretrained identity embeddings (from CharacterFactory)
-        identity_embeddings = torch.load(identity_embedding_path, map_location=self.device)
-        identity_embeddings = identity_embeddings.get("name_projection_layer")
-        print(identity_embeddings.shape)
+        identity_dict = torch.load(identity_embedding_path, map_location=self.device)
+        print("Loaded dictionary keys:", identity_dict.keys())
+
+        # Get the object for the name projection layer
+        name_proj = identity_dict.get("name_projection_layer")
+        print("Type of name_projection_layer:", type(name_proj))
+        print("Attributes of name_projection_layer:", dir(name_proj))
+
+        # If it is a module, you can also print its state_dict or parameters:
+        if hasattr(name_proj, "state_dict"):
+            print("State dict keys:", name_proj.state_dict().keys())
+            for key, tensor in name_proj.state_dict().items():
+                print(f"{key}: shape {tensor.shape}")
+        else:
+            print("name_projection_layer contents:", name_proj)
 
 	 # Assume shape is [1, 2, embedding_dim]
-        v1_emb = identity_embeddings[:, 0]  # shape: [1, embedding_dim]
-        v2_emb = identity_embeddings[:, 1]
+        v1_emb = identity_dict[:, 0]  # shape: [1, embedding_dim]
+        v2_emb = identity_dict[:, 1]
         
         # Add the special tokens to the tokenizer
         tokens = ["v1*", "v2*"]

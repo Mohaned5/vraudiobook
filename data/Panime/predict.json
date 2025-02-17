@@ -1,22 +1,17 @@
 [
 {
-  "scene_id": "1",
+  "scene_id": "5",
   "view_id": "1",
-  "pano_prompt": "A serene Japanese zen garden with raked sand patterns, blooming cherry blossoms, and a traditional wooden bridge over a koi pond, featuring a person wearing a traditional kimono"
+  "pano_prompt": "A person in knight's armour"
 },
 {
-  "scene_id": "2",
+  "scene_id": "6",
   "view_id": "1",
-  "pano_prompt": "A futuristic cityscape at night with towering neon-lit skyscrapers, flying vehicles, and bustling streets filled with holographic advertisements, featuring a man with cybernetic enhancements"
+  "pano_prompt": "A person in bed sleeping"
 },
 {
-  "scene_id": "3",
+  "scene_id": "6",
   "view_id": "1",
-  "pano_prompt": "A mystical enchanted forest with glowing mushrooms, ancient twisted trees, and soft golden light filtering through a misty canopy, featuring a person with an enigmatic aura"
-},
-{
-  "scene_id": "4",
-  "view_id": "1",
-  "pano_prompt": "A magical wizard’s study filled with ancient books, floating candles, a glowing crystal ball, and a view of a starry night sky through an arched window, featuring a woman in elaborate robes"
+  "pano_prompt": "A person eating cheese"
 }
 ]

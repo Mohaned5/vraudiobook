@@ -71,6 +71,7 @@ class PanFusion(PanoGenerator):
     def embed_prompt(self, batch, num_cameras):
         if self.hparams.use_pers_prompt:
             pers_prompt = self.get_pers_prompt(batch)
+            print("Processed pers_prompt:", pers_prompt)
             pers_prompt_embd = self.encode_text(pers_prompt)
             pers_prompt_embd = rearrange(pers_prompt_embd, '(b m) l c -> b m l c', m=num_cameras)
         else:
@@ -79,6 +80,7 @@ class PanFusion(PanoGenerator):
             pers_prompt_embd = pers_prompt_embd[:, None].repeat(1, num_cameras, 1, 1)
 
         if self.hparams.use_pano_prompt:
+            print("Processed pano_prompt:", pano_prompt)
             pano_prompt = self.get_pano_prompt(batch)
         else:
             pano_prompt = ''
@@ -232,6 +234,8 @@ class PanFusion(PanoGenerator):
             sys.modules["models.id_embedding"] = sys.modules["models.cgen.id_embedding"]
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")) 
         identity_embedding_path = os.path.join(base_dir, "logs/character_factory_weights/man.pt")
+
+        
         self.inject_identity_embeddings(identity_embedding_path)
         bs, m = batch['cameras']['height'].shape[:2]
         h, w = batch['cameras']['height'][0, 0].item(), batch['cameras']['width'][0, 0].item()
@@ -244,6 +248,7 @@ class PanFusion(PanoGenerator):
             bs, equi_h, equi_w, h//8, h//8, batch['cameras'], device)
 
         pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
+
         prompt_null = self.encode_text('')[:, None]
         pano_prompt_embd = torch.cat([prompt_null, pano_prompt_embd])
         prompt_null = prompt_null.repeat(1, m, 1, 1)

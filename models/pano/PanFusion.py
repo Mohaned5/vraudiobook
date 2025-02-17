@@ -15,6 +15,7 @@ import sys
 from models.cgen.celeb_embeddings import embedding_forward
 import models.cgen.embedding_manager
 from omegaconf import OmegaConf
+import re
 
 class PanFusion(PanoGenerator):
     def __init__(
@@ -183,54 +184,68 @@ class PanFusion(PanoGenerator):
         cameras = cameras.copy()
         cameras['theta'] = (cameras['theta'] + degree) % 360
         return pano_latent, cameras
+    
 
-    def inject_identity_embeddings(self, identity_embedding_path):
+    def parse_prompt_for_identities(self, prompt):
         """
-        Load the identity embeddings from a file using the CharacterFactory
-        EmbeddingManager, and inject them into the text encoder tokens "v1*" & "v2*".
-        Replicates the hooking and manager usage from test.py, with added print statements.
+        Scan the prompt for valid identity tokens (e.g. "man_1", "woman_1") and assign each
+        a unique pair of placeholder tokens. Replace each found token in the prompt with its
+        corresponding placeholders.
         """
-        print(f"[DEBUG] inject_identity_embeddings called with path: {identity_embedding_path}")
+        # List the valid identities – extend as needed.
+        valid_ids = ['man_1', 'woman_1']
+        # Build a regex pattern matching any of the valid identities.
+        pattern = r'\b(' + '|'.join(valid_ids) + r')\b'
+        found = re.findall(pattern, prompt)
+        mapping = {}
+        placeholder_index = 1
+        # For each unique identity token found, assign a pair of placeholders.
+        for token in found:
+            if token not in mapping:
+                mapping[token] = (f'v{placeholder_index}*', f'v{placeholder_index+1}*')
+                placeholder_index += 2
+        # Replace each identity token in the prompt with the two placeholders (joined by a space).
+        def replace_func(match):
+            token = match.group(0)
+            if token in mapping:
+                return " ".join(mapping[token])
+            return token
+        cleaned_prompt = re.sub(pattern, replace_func, prompt)
+        return cleaned_prompt, mapping
 
-        # 1) Hook the text encoder so the manager's forward logic can intercept placeholders
-        print("[DEBUG] Hooking the text encoder's embeddings.forward now.")
+    def inject_identity_embeddings(self, identity_embedding_path, placeholder_tokens, experiment_name):
+        """
+        Load the identity embeddings from a file using the EmbeddingManager and inject them into
+        the text encoder tokens provided in placeholder_tokens (e.g. ("v1*", "v2*")).
+        """
+        # 1) Hook the text encoder so the manager's forward logic can intercept placeholders.
         self.original_forward = self.text_encoder.text_model.embeddings.forward
         self.text_encoder.text_model.embeddings.forward = embedding_forward.__get__(self.text_encoder.text_model.embeddings)
-        print("[DEBUG] Hooking complete.")
 
         try:
-            # 2) Create or reuse the EmbeddingManager
-            if not hasattr(self, "Embedding_Manager"):
-                print("[DEBUG] No Embedding_Manager attribute found. Creating one now.")
+            # 2) Create a new EmbeddingManager instance.
+            embedding_manager_config = OmegaConf.load("models/cgen/datasets_face/identity_space.yaml")
+            experiment_name = experiment_name
 
-                embedding_manager_config = OmegaConf.load("models/cgen/datasets_face/identity_space.yaml")
-                experiment_name = "man_GAN"  # Adjust if needed
+            embedding_manager = models.cgen.embedding_manager.EmbeddingManagerId_adain(
+                tokenizer=self.tokenizer,
+                text_encoder=self.text_encoder,
+                device=self.device,
+                training=True,  # replicate test.py behavior
+                experiment_name=experiment_name,
+                num_embeds_per_token=embedding_manager_config.model.personalization_config.params.num_embeds_per_token,
+                token_dim=embedding_manager_config.model.personalization_config.params.token_dim,
+                mlp_depth=embedding_manager_config.model.personalization_config.params.mlp_depth,
+                loss_type=embedding_manager_config.model.personalization_config.params.loss_type,
+            )
+            embedding_manager.load(identity_embedding_path)
 
-                print(f"[DEBUG] Instantiating EmbeddingManagerId_adain with experiment_name={experiment_name}")
-                self.Embedding_Manager = models.cgen.embedding_manager.EmbeddingManagerId_adain(
-                    tokenizer=self.tokenizer,
-                    text_encoder=self.text_encoder,
-                    device=self.device,
-                    training=True,  # replicate test.py
-                    experiment_name=experiment_name,
-                    num_embeds_per_token=embedding_manager_config.model.personalization_config.params.num_embeds_per_token,
-                    token_dim=embedding_manager_config.model.personalization_config.params.token_dim,
-                    mlp_depth=embedding_manager_config.model.personalization_config.params.mlp_depth,
-                    loss_type=embedding_manager_config.model.personalization_config.params.loss_type,
-                )
-                print(f"[DEBUG] Loading Embedding_Manager weights from: {identity_embedding_path}")
-                self.Embedding_Manager.load(identity_embedding_path)
-            else:
-                print("[DEBUG] Reusing existing Embedding_Manager on self.")
-
-            # 3) Sample random latent
+            # 3) Sample a random latent.
             input_dim = 64  # typically the dimension from test.py
-            print(f"[DEBUG] Sampling random latent of shape [1, 1, {input_dim}]")
             random_embedding = torch.randn(1, 1, input_dim, device=self.device)
 
-            # 4) Call Embedding_Manager to produce final [1, 2, 1024] embeddings (commonly).
-            print("[DEBUG] Calling self.Embedding_Manager(...) to obtain 'adained_total_embedding'")
-            _, emb_dict = self.Embedding_Manager(
+            # 4) Generate the identity embeddings.
+            _, emb_dict = embedding_manager(
                 tokenized_text=None,
                 embedded_text=None,
                 name_batch=None,
@@ -238,33 +253,23 @@ class PanFusion(PanoGenerator):
                 timesteps=None
             )
             test_emb = emb_dict["adained_total_embedding"].to(self.device)
-            print(f"[DEBUG] test_emb shape: {list(test_emb.shape)}")
 
+            # Assume test_emb shape is [1, 2, D]; split into two embeddings.
             v1_emb = test_emb[:, 0]
             v2_emb = test_emb[:, 1]
-            print(f"[DEBUG] v1_emb -> mean={v1_emb.mean().item():.4f}, std={v1_emb.std().item():.4f}")
-            print(f"[DEBUG] v2_emb -> mean={v2_emb.mean().item():.4f}, std={v2_emb.std().item():.4f}")
 
-            # 5) Insert them for tokens "v1*" and "v2*"
-            tokens = ["v1*", "v2*"]
-            print(f"[DEBUG] Adding tokens {tokens} to tokenizer.")
+            # 5) Inject the embeddings for the provided placeholder tokens.
+            tokens = list(placeholder_tokens)  # e.g. ("v1*", "v2*")
             self.tokenizer.add_tokens(tokens)
             token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
 
-            print(f"[DEBUG] Resizing text_encoder token embeddings to len={len(self.tokenizer)}.")
             self.text_encoder.resize_token_embeddings(len(self.tokenizer))
-
-            print("[DEBUG] Injecting v1* and v2* embeddings into text_encoder.")
             self.text_encoder.get_input_embeddings().weight.data[token_ids[0]] = v1_emb
             self.text_encoder.get_input_embeddings().weight.data[token_ids[1]] = v2_emb
 
-            print("[DEBUG] Done injecting identity embeddings into text encoder.")
-
         finally:
-            # Always revert hooking
-            print("[DEBUG] Reverting text_encoder.text_model.embeddings.forward to original.")
+            # Always revert hooking.
             self.text_encoder.text_model.embeddings.forward = self.original_forward
-            print("[DEBUG] Hook revert complete.")
 
 
 
@@ -273,10 +278,34 @@ class PanFusion(PanoGenerator):
         if "models.id_embedding" not in sys.modules:
             sys.modules["models.id_embedding"] = sys.modules["models.cgen.id_embedding"]
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")) 
-        identity_embedding_path = os.path.join(base_dir, "logs/character_factory_weights/man.pt")
 
-        
-        self.inject_identity_embeddings(identity_embedding_path)
+        raw_prompt = batch['pano_prompt'][0]
+        cleaned_prompt, id_mapping = self.parse_prompt_for_identities(raw_prompt)
+        batch['pano_prompt'][0] = cleaned_prompt
+        print(f"[DEBUG] Cleaned prompt: {cleaned_prompt}")
+        print(f"[DEBUG] Identity mapping: {id_mapping}")
+
+        identity_embedding_paths = {
+            "man_1": os.path.join(base_dir, "logs/character_factory_weights/man.pt"),
+            "woman_1": os.path.join(base_dir, "logs/character_factory_weights/woman.pt"),
+            # Extend further if needed.
+        }
+        # Define a mapping for experiment names as well.
+        experiment_names = {
+            "man_1": "man_GAN",
+            "woman_1": "woman_GAN",
+            # Extend further if needed.
+        }
+
+        for id_token, placeholder_tokens in id_mapping.items():
+            embedding_path = identity_embedding_paths.get(id_token)
+            experiment_name = experiment_names.get(id_token, "default_experiment")
+            if embedding_path is None:
+                print(f"[WARNING] No embedding path found for identity token: {id_token}")
+            else:
+                print(f"[DEBUG] Injecting embeddings for {id_token} with placeholders {placeholder_tokens} and experiment {experiment_name}")
+                self.inject_identity_embeddings(embedding_path, placeholder_tokens, experiment_name)
+
         bs, m = batch['cameras']['height'].shape[:2]
         h, w = batch['cameras']['height'][0, 0].item(), batch['cameras']['width'][0, 0].item()
 

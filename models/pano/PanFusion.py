@@ -286,8 +286,8 @@ class PanFusion(PanoGenerator):
         print(f"[DEBUG] Identity mapping: {id_mapping}")
 
         identity_embedding_paths = {
-            "man_1": os.path.join(base_dir, "logs/character_factory_weights/man.pt"),
-            "woman_1": os.path.join(base_dir, "logs/character_factory_weights/woman.pt"),
+            "man_1": os.path.join(base_dir, "logs/character_factory_weights/man_1.pt"),
+            "woman_1": os.path.join(base_dir, "logs/character_factory_weights/woman_1.pt"),
             # Extend further if needed.
         }
         # Define a mapping for experiment names as well.

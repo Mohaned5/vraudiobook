@@ -1,17 +1,52 @@
 [
-{
-  "scene_id": "5",
-  "view_id": "1",
-  "pano_prompt": "a person in knight's armour"
-},
-{
-  "scene_id": "6",
-  "view_id": "1",
-  "pano_prompt": "a person in bed sleeping"
-},
-{
-  "scene_id": "7",
-  "view_id": "1",
-  "pano_prompt": "a person eating cheese"
-}
+  {
+    "scene_id": "5",
+    "view_id": "1",
+    "pano_prompt": "a person in knight's armour",
+  },
+  {
+    "scene_id": "6",
+    "view_id": "1",
+    "pano_prompt": "a person in bed sleeping",
+  },
+  {
+    "scene_id": "7",
+    "view_id": "1",
+    "pano_prompt": "a person eating cheese",
+  },
+  {
+    "scene_id": "8",
+    "view_id": "1",
+    "pano_prompt": "a person riding a horse through a dense forest",
+  },
+  {
+    "scene_id": "9",
+    "view_id": "1",
+    "pano_prompt": "a person holding a sword, standing on a castle balcony at sunset",
+  },
+  {
+    "scene_id": "10",
+    "view_id": "1",
+    "pano_prompt": "a person wearing battle-worn knight's armor, sitting near a campfire",
+  },
+  {
+    "scene_id": "11",
+    "view_id": "1",
+    "pano_prompt": "a person removing their helmet, revealing their face after a long battle",
+  },
+  {
+    "scene_id": "12",
+    "view_id": "1",
+    "pano_prompt": "a person walking through a grand medieval hall, with torches lighting the stone walls",
+  },
+  {
+    "scene_id": "13",
+    "view_id": "1",
+    "pano_prompt": "a person wearing a ceremonial robe over their armor, preparing for a royal audience",
+  },
+  {
+    "scene_id": "14",
+    "view_id": "1",
+    "pano_prompt": "a person training with a sword in a field at dawn",
+  }
 ]

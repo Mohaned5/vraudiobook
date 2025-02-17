@@ -2,16 +2,16 @@
 {
   "scene_id": "5",
   "view_id": "1",
-  "pano_prompt": "A person in knight's armour"
+  "pano_prompt": "a person in knight's armour"
 },
 {
   "scene_id": "6",
   "view_id": "1",
-  "pano_prompt": "A person in bed sleeping"
+  "pano_prompt": "a person in bed sleeping"
 },
 {
   "scene_id": "7",
   "view_id": "1",
-  "pano_prompt": "A person eating cheese"
+  "pano_prompt": "a person eating cheese"
 }
 ]

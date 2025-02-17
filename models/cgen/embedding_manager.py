@@ -6,7 +6,7 @@ from typing import List
 from .id_embedding.helpers import get_rep_pos, shift_tensor_dim0
 from .id_embedding.meta_net import StyleVectorizer
 from .celeb_embeddings import _get_celeb_embeddings_basis
-
+import os
 from functools import partial
 import torch.nn.functional as F
 import torch.nn as nn
@@ -54,13 +54,13 @@ class EmbeddingManagerId_adain(nn.Module):
 
         ''' 1. Placeholder mapping dicts '''
         self.placeholder_token = self.get_token_for_string("*")[0][1]    
-        
+        base_dir = os.path.dirname(os.path.abspath(__file__))
         if experiment_name == "normal_GAN":
-            self.celeb_embeddings_mean, self.celeb_embeddings_std = _get_celeb_embeddings_basis(tokenizer, text_encoder, "./datasets_face/good_names.txt")
+            self.celeb_embeddings_mean, self.celeb_embeddings_std = _get_celeb_embeddings_basis(tokenizer, text_encoder, os.path.join(base_dir, "datasets_face", "good_names.txt"))
         elif experiment_name == "man_GAN":
-            self.celeb_embeddings_mean, self.celeb_embeddings_std = _get_celeb_embeddings_basis(tokenizer, text_encoder, "./datasets_face/good_names_man.txt")
+            self.celeb_embeddings_mean, self.celeb_embeddings_std = _get_celeb_embeddings_basis(tokenizer, text_encoder, os.path.join(base_dir, "datasets_face", "good_names_man.txt"))
         elif experiment_name == "woman_GAN":            
-            self.celeb_embeddings_mean, self.celeb_embeddings_std = _get_celeb_embeddings_basis(tokenizer, text_encoder, "./datasets_face/good_names_woman.txt")
+            self.celeb_embeddings_mean, self.celeb_embeddings_std = _get_celeb_embeddings_basis(tokenizer, text_encoder, os.path.join(base_dir, "datasets_face", "good_names_woman.txt"))
         else:
             print("Hello, please notice this ^_^")
             assert 0

@@ -2,21 +2,41 @@
   {
     "scene_id": "15",
     "view_id": "1",
-    "pano_prompt": "a person enters a grand medieval library, surrounded by towering bookshelves filled with ancient manuscripts and the flickering glow of candlelight."
+    "pano_prompt": "man_1 enters a grand medieval library, surrounded by towering bookshelves filled with ancient manuscripts and the flickering glow of candlelight."
   },
   {
     "scene_id": "15",
     "view_id": "2",
-    "pano_prompt": "a person stands by an old wooden table, carefully examining a large, open book filled with mysterious symbols and faded illustrations."
+    "pano_prompt": "man_1 stands by an old wooden table, carefully examining a large, open book filled with mysterious symbols and faded illustrations."
   },
   {
     "scene_id": "15",
     "view_id": "3",
-    "pano_prompt": "a person reaches for a dusty tome on a high shelf, their silhouette illuminated by a stained-glass window casting colorful light onto the stone floor."
+    "pano_prompt": "man_1 reaches for a dusty tome on a high shelf, their silhouette illuminated by a stained-glass window casting colorful light onto the stone floor."
   },
   {
     "scene_id": "15",
     "view_id": "4",
-    "pano_prompt": "a person sits in a worn leather chair near a crackling fireplace, lost in thought as they turn the pages of an ancient book, their surroundings filled with the quiet hum of knowledge."
+    "pano_prompt": "man_1 sits in a worn leather chair near a crackling fireplace, lost in thought as they turn the pages of an ancient book, their surroundings filled with the quiet hum of knowledge."
+  },
+  {
+    "scene_id": "16",
+    "view_id": "1",
+    "pano_prompt": "woman_1 enters a grand medieval library, surrounded by towering bookshelves filled with ancient manuscripts and the flickering glow of candlelight."
+  },
+  {
+    "scene_id": "16",
+    "view_id": "2",
+    "pano_prompt": "woman_1 stands by an old wooden table, carefully examining a large, open book filled with mysterious symbols and faded illustrations."
+  },
+  {
+    "scene_id": "16",
+    "view_id": "3",
+    "pano_prompt": "woman_1 reaches for a dusty tome on a high shelf, their silhouette illuminated by a stained-glass window casting colorful light onto the stone floor."
+  },
+  {
+    "scene_id": "16",
+    "view_id": "4",
+    "pano_prompt": "woman_1 sits in a worn leather chair near a crackling fireplace, lost in thought as they turn the pages of an ancient book, their surroundings filled with the quiet hum of knowledge."
   }
 ]

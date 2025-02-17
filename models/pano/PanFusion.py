@@ -205,7 +205,7 @@ class PanFusion(PanoGenerator):
                 # Adjust this if you need "normal_GAN" or "woman_GAN"
                 experiment_name = "man_GAN"
 
-                self.Embedding_Manager = models.embedding_manager.EmbeddingManagerId_adain(
+                self.Embedding_Manager = models.cgen.embedding_manager.EmbeddingManagerId_adain(
                     tokenizer=self.tokenizer,
                     text_encoder=self.text_encoder,
                     device=self.device,

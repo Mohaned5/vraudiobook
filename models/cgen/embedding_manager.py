@@ -56,11 +56,11 @@ class EmbeddingManagerId_adain(nn.Module):
         self.placeholder_token = self.get_token_for_string("*")[0][1]    
         
         if experiment_name == "normal_GAN":
-            self.celeb_embeddings_mean, self.celeb_embeddings_std = _get_celeb_embeddings_basis(tokenizer, text_encoder, "datasets_face/good_names.txt")
+            self.celeb_embeddings_mean, self.celeb_embeddings_std = _get_celeb_embeddings_basis(tokenizer, text_encoder, "./datasets_face/good_names.txt")
         elif experiment_name == "man_GAN":
-            self.celeb_embeddings_mean, self.celeb_embeddings_std = _get_celeb_embeddings_basis(tokenizer, text_encoder, "datasets_face/good_names_man.txt")
+            self.celeb_embeddings_mean, self.celeb_embeddings_std = _get_celeb_embeddings_basis(tokenizer, text_encoder, "./datasets_face/good_names_man.txt")
         elif experiment_name == "woman_GAN":            
-            self.celeb_embeddings_mean, self.celeb_embeddings_std = _get_celeb_embeddings_basis(tokenizer, text_encoder, "datasets_face/good_names_woman.txt")
+            self.celeb_embeddings_mean, self.celeb_embeddings_std = _get_celeb_embeddings_basis(tokenizer, text_encoder, "./datasets_face/good_names_woman.txt")
         else:
             print("Hello, please notice this ^_^")
             assert 0

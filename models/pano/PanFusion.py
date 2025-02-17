@@ -203,10 +203,6 @@ class PanFusion(PanoGenerator):
             if not hasattr(self, "Embedding_Manager"):
                 print("[DEBUG] No Embedding_Manager attribute found. Creating one now.")
 
-                from omegaconf import OmegaConf
-                import models.cgen.embedding_manager
-                from models.celeb_embeddings import embedding_forward  # ensure it's imported
-
                 embedding_manager_config = OmegaConf.load("models/cgen/datasets_face/identity_space.yaml")
                 experiment_name = "man_GAN"  # Adjust if needed
 

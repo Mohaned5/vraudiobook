@@ -181,40 +181,49 @@ class PanFusion(PanoGenerator):
     def inject_identity_embeddings(self, identity_embedding_path):
         """
         Load the identity embeddings from a file and inject them into the text encoder.
-        The identity embeddings are expected to be a tensor of shape [1, 2, embedding_dim],
-        where the two vectors correspond to the tokens "v1*" and "v2*".
+        The saved file under "name_projection_layer" is a StyleVectorizer module.
+        We run a forward pass with a random latent vector to obtain the actual identity embeddings,
+        expected to be a tensor of shape [1, 2, embedding_dim].
         """
+        # Load the dictionary from file
         identity_dict = torch.load(identity_embedding_path, map_location=self.device)
         print("Loaded dictionary keys:", identity_dict.keys())
-
-        # Get the object for the name projection layer
-        name_proj = identity_dict.get("name_projection_layer")
-        print("Type of name_projection_layer:", type(name_proj))
-        print("Attributes of name_projection_layer:", dir(name_proj))
-
-        # If it is a module, you can also print its state_dict or parameters:
-        if hasattr(name_proj, "state_dict"):
-            print("State dict keys:", name_proj.state_dict().keys())
-            for key, tensor in name_proj.state_dict().items():
-                print(f"{key}: shape {tensor.shape}")
-        else:
-            print("name_projection_layer contents:", name_proj)
-
-	 # Assume shape is [1, 2, embedding_dim]
-        v1_emb = identity_dict[:, 0]  # shape: [1, embedding_dim]
-        v2_emb = identity_dict[:, 1]
         
-        # Add the special tokens to the tokenizer
+        # Extract the StyleVectorizer module
+        style_vectorizer = identity_dict.get("name_projection_layer")
+        if style_vectorizer is None:
+            raise KeyError("Key 'name_projection_layer' not found in the loaded dictionary.")
+        print("Type of name_projection_layer:", type(style_vectorizer))
+        
+        # Determine the expected input dimension.
+        # For example, if the first layer's weight has shape [2048, 64], then input_dim = 64.
+        input_dim = style_vectorizer.state_dict()['net.0.weight'].shape[1]
+        print("Determined input dimension:", input_dim)
+        
+        # Create a random latent vector with shape [1, input_dim]
+        latent = torch.randn(1, input_dim, device=self.device)
+        
+        # Run the forward pass to compute identity embeddings.
+        # The output should have shape [1, 2, embedding_dim]
+        identity_embeddings = style_vectorizer(latent)
+        print("Computed identity_embeddings shape:", identity_embeddings.shape)
+        
+        # Slice out the two embeddings.
+        v1_emb = identity_embeddings[:, 0]  # shape: [1, embedding_dim]
+        v2_emb = identity_embeddings[:, 1]
+        
+        # Add the special tokens to the tokenizer.
         tokens = ["v1*", "v2*"]
         self.tokenizer.add_tokens(tokens)
         token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
         
-        # Resize the text encoder embeddings to accommodate the new tokens
+        # Resize the text encoder's embedding matrix to include the new tokens.
         self.text_encoder.resize_token_embeddings(len(self.tokenizer), pad_to_multiple_of=8)
         
-        # Update the embeddings for the special tokens with our identity embeddings
+        # Inject the computed embeddings into the text encoder.
         for token_id, embedding in zip(token_ids, [v1_emb, v2_emb]):
             self.text_encoder.get_input_embeddings().weight.data[token_id] = embedding
+
 
 
     @torch.no_grad()

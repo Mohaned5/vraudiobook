@@ -186,7 +186,8 @@ class PanFusion(PanoGenerator):
         """
         # Load the pretrained identity embeddings (from CharacterFactory)
         identity_embeddings = torch.load(identity_embedding_path, map_location=self.device)
-        print("Dictionary keys:", identity_embeddings.keys())
+        identity_embeddings = identity_embeddings.get("name_projection_layer")
+        print(identity_embeddings.shape)
 
 	 # Assume shape is [1, 2, embedding_dim]
         v1_emb = identity_embeddings[:, 0]  # shape: [1, embedding_dim]

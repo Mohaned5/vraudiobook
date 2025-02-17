@@ -217,7 +217,6 @@ class PanFusion(PanoGenerator):
                     token_dim=embedding_manager_config.model.personalization_config.params.token_dim,
                     mlp_depth=embedding_manager_config.model.personalization_config.params.mlp_depth,
                     loss_type=embedding_manager_config.model.personalization_config.params.loss_type,
-                    vit_out_dim=embedding_manager_config.model.personalization_config.params.vit_out_dim,
                 )
                 print(f"[DEBUG] Loading Embedding_Manager weights from: {identity_embedding_path}")
                 self.Embedding_Manager.load(identity_embedding_path)

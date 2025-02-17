@@ -80,8 +80,9 @@ class PanFusion(PanoGenerator):
             pers_prompt_embd = pers_prompt_embd[:, None].repeat(1, num_cameras, 1, 1)
 
         if self.hparams.use_pano_prompt:
-            print("Processed pano_prompt:", pano_prompt)
             pano_prompt = self.get_pano_prompt(batch)
+            print("Processed pano_prompt:", pano_prompt)
+
         else:
             pano_prompt = ''
         pano_prompt_embd = self.encode_text(pano_prompt)

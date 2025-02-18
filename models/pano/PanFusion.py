@@ -46,6 +46,19 @@ class PanFusion(PanoGenerator):
         ])
 
         self._val_lpips = []
+        
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")) 
+        self.identity_embedding_paths = {
+            "man_1": os.path.join(base_dir, "logs/character_factory_weights/man_1.pt"),
+            "woman_1": os.path.join(base_dir, "logs/character_factory_weights/woman_1.pt"),
+        }
+
+        self.experiment_names = {
+            "man_1": "man_GAN",
+            "woman_1": "woman_GAN",
+        }
+
+        self.valid_ids = ['man_1', 'woman_1']
 
         
 
@@ -192,10 +205,8 @@ class PanFusion(PanoGenerator):
         a unique pair of placeholder tokens. Replace each found token in the prompt with its
         corresponding placeholders.
         """
-        # List the valid identities – extend as needed.
-        valid_ids = ['man_1', 'woman_1']
         # Build a regex pattern matching any of the valid identities.
-        pattern = r'\b(' + '|'.join(valid_ids) + r')\b'
+        pattern = r'\b(' + '|'.join(self.valid_ids) + r')\b'
         found = re.findall(pattern, prompt)
         mapping = {}
         placeholder_index = 1
@@ -277,7 +288,6 @@ class PanFusion(PanoGenerator):
     def inference(self, batch):
         if "models.id_embedding" not in sys.modules:
             sys.modules["models.id_embedding"] = sys.modules["models.cgen.id_embedding"]
-        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")) 
 
         raw_prompt = batch['pano_prompt'][0]
         cleaned_prompt, id_mapping = self.parse_prompt_for_identities(raw_prompt)
@@ -285,21 +295,11 @@ class PanFusion(PanoGenerator):
         print(f"[DEBUG] Cleaned prompt: {cleaned_prompt}")
         print(f"[DEBUG] Identity mapping: {id_mapping}")
 
-        identity_embedding_paths = {
-            "man_1": os.path.join(base_dir, "logs/character_factory_weights/man_1.pt"),
-            "woman_1": os.path.join(base_dir, "logs/character_factory_weights/woman_1.pt"),
-            # Extend further if needed.
-        }
-        # Define a mapping for experiment names as well.
-        experiment_names = {
-            "man_1": "man_GAN",
-            "woman_1": "woman_GAN",
-            # Extend further if needed.
-        }
+        
 
         for id_token, placeholder_tokens in id_mapping.items():
-            embedding_path = identity_embedding_paths.get(id_token)
-            experiment_name = experiment_names.get(id_token, "default_experiment")
+            embedding_path = self.identity_embedding_paths.get(id_token)
+            experiment_name = self.experiment_names.get(id_token, "default_experiment")
             if embedding_path is None:
                 print(f"[WARNING] No embedding path found for identity token: {id_token}")
             else:

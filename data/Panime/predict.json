@@ -38,5 +38,16 @@
     "scene_id": "16",
     "view_id": "4",
     "pano_prompt": "woman_1 sits in a worn leather chair near a crackling fireplace, lost in thought as they turn the pages of an ancient book, their surroundings filled with the quiet hum of knowledge."
+  },
+  {
+    "scene_id": "16",
+    "view_id": "4",
+    "pano_prompt": "woman_1 sits in a worn leather chair near a crackling fireplace, lost in thought as they turn the pages of an ancient book, their surroundings filled with the quiet hum of knowledge."
+  },
+  {
+    "scene_id": "17",
+    "view_id": "1",
+    "pano_prompt": "man_1 and woman_1 sit together on a park bench, watching the sunset."
   }
+
 ]

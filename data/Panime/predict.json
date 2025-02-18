@@ -48,6 +48,11 @@
     "scene_id": "17",
     "view_id": "1",
     "pano_prompt": "man_1 and woman_1 sit together on a park bench, watching the sunset."
+  },
+  {
+    "scene_id": "18",
+    "view_id": "1",
+    "pano_prompt": "man_1 and woman_1 stand by an old wooden table, carefully examining a large, open book filled with mysterious symbols and faded illustrations."
   }
 
 ]

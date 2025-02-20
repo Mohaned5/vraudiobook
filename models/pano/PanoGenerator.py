@@ -61,7 +61,7 @@ class PanoBase(WandbLightningModule):
 class PanoGenerator(PanoBase):
     def __init__(
             self,
-            lr: float = 6e-6,
+            lr: float = 3e-6,
             guidance_scale: float = 9.0,
             model_id: str = 'stabilityai/stable-diffusion-2-base',
             diff_timestep: int = 50,
@@ -297,7 +297,7 @@ class PanoGenerator(PanoBase):
 
             cosine_scheduler = {
                 'scheduler': CosineAnnealingLR(
-                    optimizer, T_max=self.trainer.max_epochs - warmup_epochs, eta_min=1e-6
+                    optimizer, T_max=self.trainer.max_epochs - warmup_epochs, eta_min=1e-7
                 ),
                 'interval': 'epoch',
                 'name': 'cosine_annealing_lr',

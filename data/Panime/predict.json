@@ -53,6 +53,31 @@
     "scene_id": "18",
     "view_id": "1",
     "pano_prompt": "a clear image of man_1 and woman_1 faces as they stand by an old wooden table, carefully examining a large, open book filled with mysterious symbols and faded illustrations."
+  },
+  {
+    "scene_id": "23",
+    "view_id": "1",
+    "pano_prompt": "a clear image of man_1, woman_1 and woman_2 faces "
+  },
+  {
+    "scene_id": "20",
+    "view_id": "3",
+    "pano_prompt": "a clear image of man_1's face"
+  },
+  {
+    "scene_id": "21",
+    "view_id": "3",
+    "pano_prompt": "a clear image of woman_1's face"
+  },
+  {
+    "scene_id": "22",
+    "view_id": "3",
+    "pano_prompt": "a clear image of woman_2's face"
+  },
+  {
+    "scene_id": "24",
+    "view_id": "1",
+    "pano_prompt": "a clear image of man_1 and woman_2 faces"
   }
 
 ]

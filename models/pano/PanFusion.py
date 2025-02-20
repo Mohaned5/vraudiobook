@@ -50,15 +50,47 @@ class PanFusion(PanoGenerator):
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")) 
         self.identity_embedding_paths = {
             "man_1": os.path.join(base_dir, "logs/character_factory_weights/man_1.pt"),
+            "man_2": os.path.join(base_dir, "logs/character_factory_weights/man_2.pt"),
+            "man_3": os.path.join(base_dir, "logs/character_factory_weights/man_3.pt"),
+            "man_4": os.path.join(base_dir, "logs/character_factory_weights/man_4.pt"),
+            "man_5": os.path.join(base_dir, "logs/character_factory_weights/man_5.pt"),
+            "man_6": os.path.join(base_dir, "logs/character_factory_weights/man_6.pt"),
+            "man_7": os.path.join(base_dir, "logs/character_factory_weights/man_7.pt"),
+            "man_8": os.path.join(base_dir, "logs/character_factory_weights/man_8.pt"),
+            "man_9": os.path.join(base_dir, "logs/character_factory_weights/man_9.pt"),
             "woman_1": os.path.join(base_dir, "logs/character_factory_weights/woman_1.pt"),
+            "woman_2": os.path.join(base_dir, "logs/character_factory_weights/woman_2.pt"),
+            "woman_3": os.path.join(base_dir, "logs/character_factory_weights/woman_3.pt"),
+            "woman_4": os.path.join(base_dir, "logs/character_factory_weights/woman_4.pt"),
+            "woman_5": os.path.join(base_dir, "logs/character_factory_weights/woman_5.pt"),
+            "woman_6": os.path.join(base_dir, "logs/character_factory_weights/woman_6.pt"),
+            "woman_7": os.path.join(base_dir, "logs/character_factory_weights/woman_7.pt"),
+            "woman_8": os.path.join(base_dir, "logs/character_factory_weights/woman_8.pt"),
+            "woman_9": os.path.join(base_dir, "logs/character_factory_weights/woman_9.pt")
         }
 
         self.experiment_names = {
             "man_1": "man_GAN",
+            "man_2": "man_GAN",
+            "man_3": "man_GAN",
+            "man_4": "man_GAN",
+            "man_5": "man_GAN",
+            "man_6": "man_GAN",
+            "man_7": "man_GAN",
+            "man_8": "man_GAN",
+            "man_9": "man_GAN",
             "woman_1": "woman_GAN",
+            "woman_2": "woman_GAN",
+            "woman_3": "woman_GAN",
+            "woman_4": "woman_GAN",
+            "woman_5": "woman_GAN",
+            "woman_6": "woman_GAN",
+            "woman_7": "woman_GAN",
+            "woman_8": "woman_GAN",
+            "woman_9": "woman_GAN",
         }
 
-        self.valid_ids = ['man_1', 'woman_1']
+        self.valid_ids = ['man_1', 'man_2', 'man_3', 'man_4', 'man_5', 'man_6', 'man_7', 'man_8', 'man_9', 'woman_1', 'woman_2', 'woman_3', 'woman_4', 'woman_5', 'woman_6', 'woman_7', 'woman_8', 'woman_9']
 
         
 
@@ -226,61 +258,26 @@ class PanFusion(PanoGenerator):
 
     def inject_identity_embeddings(self, identity_embedding_path, placeholder_tokens, experiment_name):
         """
-        Load the identity embeddings from a file using the EmbeddingManager and inject them into
+        Load the fixed identity embeddings from a file and inject them into
         the text encoder tokens provided in placeholder_tokens (e.g. ("v1*", "v2*")).
         """
-        # 1) Hook the text encoder so the manager's forward logic can intercept placeholders.
-        self.original_forward = self.text_encoder.text_model.embeddings.forward
-        self.text_encoder.text_model.embeddings.forward = embedding_forward.__get__(self.text_encoder.text_model.embeddings)
+        # 1) Load the fixed identity embedding directly from file.
+        fixed_embedding = torch.load(identity_embedding_path).to(self.device)
+        
+        # Assume fixed_embedding has shape [1, 2, D]; extract the two embeddings.
+        v1_emb = fixed_embedding[:, 0]
+        v2_emb = fixed_embedding[:, 1]
+        
+        # 2) Add the placeholder tokens to the tokenizer.
+        tokens = list(placeholder_tokens)  # e.g. ("v1*", "v2*")
+        self.tokenizer.add_tokens(tokens)
+        token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
+        
+        # 3) Resize the text encoder's embedding layer and set the new weights.
+        self.text_encoder.resize_token_embeddings(len(self.tokenizer))
+        self.text_encoder.get_input_embeddings().weight.data[token_ids[0]] = v1_emb
+        self.text_encoder.get_input_embeddings().weight.data[token_ids[1]] = v2_emb
 
-        try:
-            # 2) Create a new EmbeddingManager instance.
-            embedding_manager_config = OmegaConf.load("models/cgen/datasets_face/identity_space.yaml")
-            experiment_name = experiment_name
-
-            embedding_manager = models.cgen.embedding_manager.EmbeddingManagerId_adain(
-                tokenizer=self.tokenizer,
-                text_encoder=self.text_encoder,
-                device=self.device,
-                training=True,  # replicate test.py behavior
-                experiment_name=experiment_name,
-                num_embeds_per_token=embedding_manager_config.model.personalization_config.params.num_embeds_per_token,
-                token_dim=embedding_manager_config.model.personalization_config.params.token_dim,
-                mlp_depth=embedding_manager_config.model.personalization_config.params.mlp_depth,
-                loss_type=embedding_manager_config.model.personalization_config.params.loss_type,
-            )
-            embedding_manager.load(identity_embedding_path)
-
-            # 3) Sample a random latent.
-            input_dim = 64  # typically the dimension from test.py
-            random_embedding = torch.randn(1, 1, input_dim, device=self.device)
-
-            # 4) Generate the identity embeddings.
-            _, emb_dict = embedding_manager(
-                tokenized_text=None,
-                embedded_text=None,
-                name_batch=None,
-                random_embeddings=random_embedding,
-                timesteps=None
-            )
-            test_emb = emb_dict["adained_total_embedding"].to(self.device)
-
-            # Assume test_emb shape is [1, 2, D]; split into two embeddings.
-            v1_emb = test_emb[:, 0]
-            v2_emb = test_emb[:, 1]
-
-            # 5) Inject the embeddings for the provided placeholder tokens.
-            tokens = list(placeholder_tokens)  # e.g. ("v1*", "v2*")
-            self.tokenizer.add_tokens(tokens)
-            token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
-
-            self.text_encoder.resize_token_embeddings(len(self.tokenizer))
-            self.text_encoder.get_input_embeddings().weight.data[token_ids[0]] = v1_emb
-            self.text_encoder.get_input_embeddings().weight.data[token_ids[1]] = v2_emb
-
-        finally:
-            # Always revert hooking.
-            self.text_encoder.text_model.embeddings.forward = self.original_forward
 
 
 
@@ -305,6 +302,7 @@ class PanFusion(PanoGenerator):
             else:
                 print(f"[DEBUG] Injecting embeddings for {id_token} with placeholders {placeholder_tokens} and experiment {experiment_name}")
                 self.inject_identity_embeddings(embedding_path, placeholder_tokens, experiment_name)
+
 
         bs, m = batch['cameras']['height'].shape[:2]
         h, w = batch['cameras']['height'][0, 0].item(), batch['cameras']['width'][0, 0].item()

@@ -4,7 +4,3 @@ from .pano.PanoOnly import PanoOnly
 from .pano.MvDiffusion import MvDiffusion
 from .faed.FAED import FAED
 from .horizonnet.HorizonNet import HorizonNet
-from .cgen.id_embedding.helpers import *
-from .cgen.id_embedding.meta_net import *
-from .cgen.embedding_manager import *
-from .cgen.celeb_embeddings import *

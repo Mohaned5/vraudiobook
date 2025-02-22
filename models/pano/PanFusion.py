@@ -12,8 +12,6 @@ from torchvision import transforms
 from torchmetrics.image.fid import FrechetInceptionDistance
 import torchvision.transforms as T
 import sys
-from models.cgen.celeb_embeddings import embedding_forward
-import models.cgen.embedding_manager
 from omegaconf import OmegaConf
 import re
 
@@ -67,27 +65,6 @@ class PanFusion(PanoGenerator):
             "woman_7": os.path.join(base_dir, "logs/character_factory_weights/woman_7.pt"),
             "woman_8": os.path.join(base_dir, "logs/character_factory_weights/woman_8.pt"),
             "woman_9": os.path.join(base_dir, "logs/character_factory_weights/woman_9.pt")
-        }
-
-        self.experiment_names = {
-            "man_1": "man_GAN",
-            "man_2": "man_GAN",
-            "man_3": "man_GAN",
-            "man_4": "man_GAN",
-            "man_5": "man_GAN",
-            "man_6": "man_GAN",
-            "man_7": "man_GAN",
-            "man_8": "man_GAN",
-            "man_9": "man_GAN",
-            "woman_1": "woman_GAN",
-            "woman_2": "woman_GAN",
-            "woman_3": "woman_GAN",
-            "woman_4": "woman_GAN",
-            "woman_5": "woman_GAN",
-            "woman_6": "woman_GAN",
-            "woman_7": "woman_GAN",
-            "woman_8": "woman_GAN",
-            "woman_9": "woman_GAN",
         }
 
         self.valid_ids = ['man_1', 'man_2', 'man_3', 'man_4', 'man_5', 'man_6', 'man_7', 'man_8', 'man_9', 'woman_1', 'woman_2', 'woman_3', 'woman_4', 'woman_5', 'woman_6', 'woman_7', 'woman_8', 'woman_9']
@@ -256,7 +233,7 @@ class PanFusion(PanoGenerator):
         cleaned_prompt = re.sub(pattern, replace_func, prompt)
         return cleaned_prompt, mapping
 
-    def inject_identity_embeddings(self, identity_embedding_path, placeholder_tokens, experiment_name):
+    def inject_identity_embeddings(self, identity_embedding_path, placeholder_tokens):
         """
         Load the fixed identity embeddings from a file and inject them into
         the text encoder tokens provided in placeholder_tokens (e.g. ("v1*", "v2*")).
@@ -296,12 +273,9 @@ class PanFusion(PanoGenerator):
 
         for id_token, placeholder_tokens in id_mapping.items():
             embedding_path = self.identity_embedding_paths.get(id_token)
-            experiment_name = self.experiment_names.get(id_token, "default_experiment")
             if embedding_path is None:
-                print(f"[WARNING] No embedding path found for identity token: {id_token}")
             else:
-                print(f"[DEBUG] Injecting embeddings for {id_token} with placeholders {placeholder_tokens} and experiment {experiment_name}")
-                self.inject_identity_embeddings(embedding_path, placeholder_tokens, experiment_name)
+                self.inject_identity_embeddings(embedding_path, placeholder_tokens)
 
 
         bs, m = batch['cameras']['height'].shape[:2]

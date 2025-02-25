@@ -48,14 +48,17 @@ class PanoBase(WandbLightningModule):
             pano_prompt = ['. '.join(p1) if p2 else '' for p1, p2 in zip(prompts, batch['pano_prompt'])]
         else:
             pano_prompt = batch['pano_prompt']
-        return self.add_pano_prompt_prefix(pano_prompt)
+        
+        pano_prompt = self.add_pano_prompt_prefix(pano_prompt)
+        return pano_prompt
 
     def get_pers_prompt(self, batch):
         if self.hparams.copy_pano_prompt:
             prompts = sum([[p] * batch['cameras']['height'].shape[-1] for p in batch['pano_prompt']], [])
         else:
             prompts = sum(map(list, zip(*batch['prompt'])), [])
-        return self.add_pers_prompt_prefix(prompts)
+        prompts = self.add_pers_prompt_prefix(prompts)
+        return prompts
 
 
 class PanoGenerator(PanoBase):

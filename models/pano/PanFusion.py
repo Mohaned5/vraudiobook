@@ -11,7 +11,9 @@ import lpips
 from torchvision import transforms
 from torchmetrics.image.fid import FrechetInceptionDistance
 import torchvision.transforms as T
-
+import sys
+from omegaconf import OmegaConf
+import re
 
 class PanFusion(PanoGenerator):
     def __init__(
@@ -42,6 +44,30 @@ class PanFusion(PanoGenerator):
         ])
 
         self._val_lpips = []
+        
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")) 
+        self.identity_embedding_paths = {
+            "[man_1]": os.path.join(base_dir, "logs/character_factory_weights/man_1.pt"),
+            "[man_2]": os.path.join(base_dir, "logs/character_factory_weights/man_2.pt"),
+            "[man_3]": os.path.join(base_dir, "logs/character_factory_weights/man_3.pt"),
+            "[man_4]": os.path.join(base_dir, "logs/character_factory_weights/man_4.pt"),
+            "[man_5]": os.path.join(base_dir, "logs/character_factory_weights/man_5.pt"),
+            "[man_6]": os.path.join(base_dir, "logs/character_factory_weights/man_6.pt"),
+            "[man_7]": os.path.join(base_dir, "logs/character_factory_weights/man_7.pt"),
+            "[man_8]": os.path.join(base_dir, "logs/character_factory_weights/man_8.pt"),
+            "[man_9]": os.path.join(base_dir, "logs/character_factory_weights/man_9.pt"),
+            "[woman_1]": os.path.join(base_dir, "logs/character_factory_weights/woman_1.pt"),
+            "[woman_2]": os.path.join(base_dir, "logs/character_factory_weights/woman_2.pt"),
+            "[woman_3]": os.path.join(base_dir, "logs/character_factory_weights/woman_3.pt"),
+            "[woman_4]": os.path.join(base_dir, "logs/character_factory_weights/woman_4.pt"),
+            "[woman_5]": os.path.join(base_dir, "logs/character_factory_weights/woman_5.pt"),
+            "[woman_6]": os.path.join(base_dir, "logs/character_factory_weights/woman_6.pt"),
+            "[woman_7]": os.path.join(base_dir, "logs/character_factory_weights/woman_7.pt"),
+            "[woman_8]": os.path.join(base_dir, "logs/character_factory_weights/woman_8.pt"),
+            "[woman_9]": os.path.join(base_dir, "logs/character_factory_weights/woman_9.pt")
+        }
+
+        self.valid_ids = ['[man_1]', '[man_2]', '[man_3]', '[man_4]', '[man_5]', '[man_6]', '[man_7]', '[man_8]', '[man_9]', '[woman_1]', '[woman_2]', '[woman_3]', '[woman_4]', '[woman_5]', '[woman_6]', '[woman_7]', '[woman_8]', '[woman_9]']
 
         
 
@@ -77,6 +103,7 @@ class PanFusion(PanoGenerator):
     def embed_prompt(self, batch, num_cameras):
         if self.hparams.use_pers_prompt:
             pers_prompt = self.get_pers_prompt(batch)
+            print("Processed pers_prompt:", pers_prompt)
             pers_prompt_embd = self.encode_text(pers_prompt)
             pers_prompt_embd = rearrange(pers_prompt_embd, '(b m) l c -> b m l c', m=num_cameras)
         else:
@@ -86,6 +113,8 @@ class PanFusion(PanoGenerator):
 
         if self.hparams.use_pano_prompt:
             pano_prompt = self.get_pano_prompt(batch)
+            print("Processed pano_prompt:", pano_prompt)
+
         else:
             pano_prompt = ''
         pano_prompt_embd = self.encode_text(pano_prompt)
@@ -183,9 +212,74 @@ class PanFusion(PanoGenerator):
         cameras = cameras.copy()
         cameras['theta'] = (cameras['theta'] + degree) % 360
         return pano_latent, cameras
+    
+
+    def parse_prompt_for_identities(self, prompt):
+        """
+        Scan the prompt for valid identity tokens (e.g. "man_1", "woman_1") and assign each
+        a unique pair of placeholder tokens. Replace each found token in the prompt with its
+        corresponding placeholders.
+        """
+        # Build a regex pattern matching any of the valid identities.
+        pattern = r'\b(' + '|'.join(self.valid_ids) + r')\b'
+        found = re.findall(pattern, prompt)
+        mapping = {}
+        placeholder_index = 1
+        # For each unique identity token found, assign a pair of placeholders.
+        for token in found:
+            if token not in mapping:
+                mapping[token] = (f'v{placeholder_index}*', f'v{placeholder_index+1}*')
+                placeholder_index += 2
+        # Replace each identity token in the prompt with the two placeholders (joined by a space).
+        def replace_func(match):
+            token = match.group(0)
+            if token in mapping:
+                return " ".join(mapping[token])
+            return token
+        cleaned_prompt = re.sub(pattern, replace_func, prompt)
+        return cleaned_prompt, mapping
+
+    def inject_identity_embeddings(self, identity_embedding_path, placeholder_tokens):
+        """
+        Load the fixed identity embeddings from a file and inject them into
+        the text encoder tokens provided in placeholder_tokens (e.g. ("v1*", "v2*")).
+        """
+        # 1) Load the fixed identity embedding directly from file.
+        fixed_embedding = torch.load(identity_embedding_path).to(self.device)
+        
+        # Assume fixed_embedding has shape [1, 2, D]; extract the two embeddings.
+        v1_emb = fixed_embedding[:, 0]
+        v2_emb = fixed_embedding[:, 1]
+        
+        # 2) Add the placeholder tokens to the tokenizer.
+        tokens = list(placeholder_tokens)  # e.g. ("v1*", "v2*")
+        self.tokenizer.add_tokens(tokens)
+        token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
+        
+        # 3) Resize the text encoder's embedding layer and set the new weights.
+        self.text_encoder.resize_token_embeddings(len(self.tokenizer))
+        self.text_encoder.get_input_embeddings().weight.data[token_ids[0]] = v1_emb
+        self.text_encoder.get_input_embeddings().weight.data[token_ids[1]] = v2_emb
 
     @torch.no_grad()
     def inference(self, batch):
+        if "models.id_embedding" not in sys.modules:
+            sys.modules["models.id_embedding"] = sys.modules["models.cgen.id_embedding"]
+
+        raw_prompt = batch['pano_prompt'][0]
+        cleaned_prompt, id_mapping = self.parse_prompt_for_identities(raw_prompt)
+        batch['pano_prompt'][0] = cleaned_prompt
+        print(f"[DEBUG] Cleaned prompt: {cleaned_prompt}")
+        print(f"[DEBUG] Identity mapping: {id_mapping}")
+
+
+        for id_token, placeholder_tokens in id_mapping.items():
+            embedding_path = self.identity_embedding_paths.get(id_token)
+            if embedding_path is None:
+            else:
+                self.inject_identity_embeddings(embedding_path, placeholder_tokens)
+
+
         bs, m = batch['cameras']['height'].shape[:2]
         h, w = batch['cameras']['height'][0, 0].item(), batch['cameras']['width'][0, 0].item()
 
@@ -197,6 +291,7 @@ class PanFusion(PanoGenerator):
             bs, equi_h, equi_w, h//8, h//8, batch['cameras'], device)
 
         pers_prompt_embd, pano_prompt_embd = self.embed_prompt(batch, m)
+
         prompt_null = self.encode_text('')[:, None]
         pano_prompt_embd = torch.cat([prompt_null, pano_prompt_embd])
         prompt_null = prompt_null.repeat(1, m, 1, 1)

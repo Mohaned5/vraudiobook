@@ -44,6 +44,8 @@ class PanFusion(PanoGenerator):
         ])
 
         self._val_lpips = []
+
+        self._test_lpips = []
         
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../id_embeddings")) 
         self.identity_embedding_paths = {
@@ -472,3 +474,91 @@ class PanFusion(PanoGenerator):
         log_dict['pano'] = self.temp_wandb_image(
             pano[0, 0], pano_prompt[0] if pano_prompt else None)
         return log_dict
+
+    @torch.no_grad()
+    def test_step(self, batch, batch_idx):
+        device = batch['images'].device
+        
+        images_pred, pano_pred = self.inference(batch)
+
+        self.log_test_image(
+            images_pred=images_pred,
+            images=batch['images'],
+            pano_pred=pano_pred,
+            pano=batch['pano'],
+            pano_prompt=batch['pano_prompt']
+        )
+
+        b, m = batch['images'].shape[:2]
+        lpips_scores = []
+
+        for i in range(b):
+            for j in range(m):
+                pred_img = images_pred[i, j]   # (H, W, C) in numpy
+                gt_img   = batch['images'][i, j]  # (C, H, W) in torch [-1,1]
+                
+                # Convert predicted image to torch, shape (1, C, H, W)
+                pred_img_torch = torch.from_numpy(pred_img).float()
+                if pred_img_torch.ndim == 3 and pred_img_torch.shape[-1] == 3:
+                    # (H, W, C) -> (C, H, W)
+                    pred_img_torch = pred_img_torch.permute(2, 0, 1)
+                pred_img_torch = pred_img_torch.to(device)
+                gt_img_torch   = gt_img.to(device).float()
+
+                lpips_val = self.lpips_model(
+                    pred_img_torch.unsqueeze(0),
+                    gt_img_torch.unsqueeze(0)
+                )
+                lpips_scores.append(lpips_val.item())
+
+                pred_img_01 = self.to01(pred_img_torch).clamp(0, 1).cpu()
+                gt_img_01   = self.to01(gt_img_torch).clamp(0, 1).cpu()
+
+                pred_pil = transforms.ToPILImage()(pred_img_01)
+                gt_pil   = transforms.ToPILImage()(gt_img_01)
+
+                pred_img_resized = self.fid_transform(pred_pil).to(device)
+                gt_img_resized   = self.fid_transform(gt_pil).to(device)
+
+                self.fid_metric.update(pred_img_resized.unsqueeze(0), real=False)
+                self.fid_metric.update(gt_img_resized.unsqueeze(0),   real=True)
+
+        if lpips_scores:
+            avg_lpips_batch = sum(lpips_scores) / len(lpips_scores)
+            self._test_lpips.append(avg_lpips_batch)
+            self.log('test/lpips_batch', avg_lpips_batch, on_epoch=True, sync_dist=True)
+        else:
+            self.log('test/lpips_batch', float('nan'), on_epoch=True)
+
+        return torch.tensor(0.0, device=device)
+
+    def on_test_epoch_end(self):
+        if self._test_lpips:
+            epoch_avg_lpips = sum(self._test_lpips) / len(self._test_lpips)
+        else:
+            epoch_avg_lpips = float('nan')
+        self.log('test/lpips_epoch', epoch_avg_lpips, prog_bar=True)
+
+        try:
+            epoch_fid = self.fid_metric_test.compute().item()
+        except Exception as e:
+            self.print(f"Error computing FID on test set: {e}")
+            epoch_fid = float('nan')
+        self.log('test/fid_epoch', epoch_fid, prog_bar=True)
+
+        self._test_lpips.clear()
+        self.fid_metric_test.reset()
+
+    @torch.no_grad()
+    @rank_zero_only
+    def log_test_image(self, images_pred, images, pano_pred, pano, pano_prompt):
+        log_dict = {f"test/{k}_pred": v for k, v in self.temp_wandb_images(
+            images_pred, pano_pred, None, pano_prompt
+        ).items()}
+        log_dict.update({f"test/{k}_gt": v for k, v in self.temp_wandb_images(
+            images, pano, None, pano_prompt
+        ).items()})
+        self.logger.experiment.log(log_dict)
+
+
+

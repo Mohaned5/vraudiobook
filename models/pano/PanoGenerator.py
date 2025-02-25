@@ -349,10 +349,9 @@ class PanoGenerator(PanoBase):
     #         }
     #         return {'optimizer': optimizer, 'lr_scheduler': scheduler}
 
-    @torch.no_grad()
+    @abstractmethod
     def test_step(self, batch, batch_idx):
-        output_dir = os.path.join(self.logger.save_dir, 'test', batch['pano_id'][0])
-        self.inference_and_save(batch, output_dir)
+        pass
 
     @torch.no_grad()
     def predict_step(self, batch, batch_idx, dataloader_idx=0):

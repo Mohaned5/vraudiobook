@@ -2,7 +2,7 @@ import os
 from diffusers import AutoencoderKL, DDIMScheduler, UNet2DConditionModel
 import torch
 from transformers import CLIPTextModel, CLIPTokenizer
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import LinearLR, CosineAnnealingLR, SequentialLR
 from einops import rearrange
 from abc import abstractmethod
 from diffusers.models.attention_processor import LoRAAttnProcessor
@@ -61,7 +61,7 @@ class PanoBase(WandbLightningModule):
 class PanoGenerator(PanoBase):
     def __init__(
             self,
-            lr: float = 2e-4,
+            lr: float = 3e-6,
             guidance_scale: float = 9.0,
             model_id: str = 'stabilityai/stable-diffusion-2-base',
             diff_timestep: int = 50,
@@ -244,10 +244,9 @@ class PanoGenerator(PanoBase):
                 result.append(None)
             elif isinstance(input, dict):
                 result.append({k: torch.cat([v]*2) for k, v in input.items()})
-            elif isinstance(input, list):
-                result.append([torch.cat([v]*2) for v in input])
             else:
-                result.append(torch.cat([input]*2))
+            # replicate along batch dimension
+                result.append(torch.cat([input, input], dim=0))
         return result
 
     def combine_cls_free_guide_pred(self, *noise_pred_list):
@@ -276,21 +275,76 @@ class PanoGenerator(PanoBase):
         image = vae.decode(latents.to(vae.dtype)).sample
         image = rearrange(image, '(b m) c h w -> b m c h w', b=b)
         return image.to(self.dtype)
-
+        
     def configure_optimizers(self):
         param_groups = []
         for params, lr_scale in self.trainable_params:
             param_groups.append({"params": params, "lr": self.hparams.lr * lr_scale})
+
         optimizer = torch.optim.AdamW(param_groups)
+
         if self.hparams.layout_cond:
             return optimizer
         else:
-            scheduler = {
-                'scheduler': CosineAnnealingLR(optimizer, T_max=self.trainer.max_epochs, eta_min=1e-7),
-                'interval': 'epoch',  # update the learning rate after each epoch
+            warmup_epochs = 5
+            warmup_scheduler = {
+                'scheduler': LinearLR(
+                    optimizer, start_factor=0.1, end_factor=1.0, total_iters=warmup_epochs
+                ),
+                'interval': 'epoch',
+                'name': 'warmup_lr',
+            }
+
+            cosine_scheduler = {
+                'scheduler': CosineAnnealingLR(
+                    optimizer, T_max=self.trainer.max_epochs - warmup_epochs, eta_min=1e-7
+                ),
+                'interval': 'epoch',
                 'name': 'cosine_annealing_lr',
             }
-            return {'optimizer': optimizer, 'lr_scheduler': scheduler}
+
+        return {
+            'optimizer': optimizer,
+            'lr_scheduler': {
+                'scheduler': SequentialLR(
+                    optimizer,
+                    schedulers=[warmup_scheduler['scheduler'], cosine_scheduler['scheduler']],
+                    milestones=[warmup_epochs]
+                ),
+                'interval': 'epoch',
+                'name': 'combined_lr',
+            }
+        }
+        
+    """Finding optimal lr"""
+    # def configure_optimizers(self):
+    #     param_groups = []
+    #     for params, lr_scale in self.trainable_params:
+    #         param_groups.append({"params": params, "lr": self.hparams.lr * lr_scale})
+    #     optimizer = torch.optim.AdamW(param_groups)
+
+    #     steps_per_epoch = len(self.trainer.datamodule.train_dataloader())
+    #     warmup_steps = 10 * steps_per_epoch
+    #     print(f"Linear warmup for {warmup_steps} steps.")
+
+    #     def linear_warmup(step):
+    #         if step < warmup_steps:
+    #             return float(step) / float(max(1, warmup_steps))  # 0 -> 1 linearly
+    #         else:
+    #             return 1.0
+
+    #     scheduler = LambdaLR(optimizer, lr_lambda=linear_warmup)
+
+    #     if self.hparams.layout_cond:
+    #         return optimizer
+    #     else:
+    #         scheduler = {
+    #             'scheduler': scheduler,
+    #             'interval': 'step',  # update LR *every step*
+    #             'frequency': 1,
+    #             'name': 'linear_warmup'
+    #         }
+    #         return {'optimizer': optimizer, 'lr_scheduler': scheduler}
 
     @torch.no_grad()
     def test_step(self, batch, batch_idx):

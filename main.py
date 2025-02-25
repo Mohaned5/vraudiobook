@@ -21,14 +21,16 @@ def cli_main():
 
     torch.set_float32_matmul_precision('medium')
 
-    wandb_id = os.environ.get('WANDB_RUN_ID', wandb.util.generate_id())
+    # wandb_id = os.environ.get('WANDB_RUN_ID', wandb.util.generate_id())
+    wandb_id = '5yigqbkk'
     exp_dir = os.path.join('logs', wandb_id)
     os.makedirs(exp_dir, exist_ok=True)
     wandb_logger = lazy_instance(
         WandbLogger,
-        project='panfusion',
+        project='panfusionlr',
         id=wandb_id,
-        save_dir=exp_dir
+        save_dir=exp_dir,
+        resume="allow",
         )
 
     ckpt_dir = os.path.join(exp_dir, 'checkpoints')
@@ -61,9 +63,10 @@ def cli_main():
         seed_everything_default=os.environ.get("LOCAL_RANK", 0),
         trainer_defaults={
             'strategy': 'ddp',
-            'log_every_n_steps': 10,
+            'log_every_n_steps': 5,
             'num_sanity_val_steps': 0,
-            'limit_val_batches': 4,
+            'check_val_every_n_epoch': 5,
+            'limit_val_batches': 100,
             'benchmark': True,
             'max_epochs': 10,
             'precision': 32,

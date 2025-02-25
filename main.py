@@ -21,7 +21,8 @@ def cli_main():
 
     torch.set_float32_matmul_precision('medium')
 
-    wandb_id = os.environ.get('WANDB_RUN_ID', wandb.util.generate_id())
+    # wandb_id = os.environ.get('WANDB_RUN_ID', wandb.util.generate_id())
+    wandb_id = '5yigqbkk'
     exp_dir = os.path.join('logs', wandb_id)
     os.makedirs(exp_dir, exist_ok=True)
     wandb_logger = lazy_instance(
@@ -64,7 +65,7 @@ def cli_main():
             'strategy': 'ddp',
             'log_every_n_steps': 5,
             'num_sanity_val_steps': 0,
-            'check_val_every_n_epoch': 10,
+            'check_val_every_n_epoch': 5,
             'limit_val_batches': 100,
             'benchmark': True,
             'max_epochs': 10,

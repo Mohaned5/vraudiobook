@@ -47,27 +47,27 @@ class PanFusion(PanoGenerator):
         
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")) 
         self.identity_embedding_paths = {
-            "man_1": os.path.join(base_dir, "logs/character_factory_weights/man_1.pt"),
-            "man_2": os.path.join(base_dir, "logs/character_factory_weights/man_2.pt"),
-            "man_3": os.path.join(base_dir, "logs/character_factory_weights/man_3.pt"),
-            "man_4": os.path.join(base_dir, "logs/character_factory_weights/man_4.pt"),
-            "man_5": os.path.join(base_dir, "logs/character_factory_weights/man_5.pt"),
-            "man_6": os.path.join(base_dir, "logs/character_factory_weights/man_6.pt"),
-            "man_7": os.path.join(base_dir, "logs/character_factory_weights/man_7.pt"),
-            "man_8": os.path.join(base_dir, "logs/character_factory_weights/man_8.pt"),
-            "man_9": os.path.join(base_dir, "logs/character_factory_weights/man_9.pt"),
-            "woman_1": os.path.join(base_dir, "logs/character_factory_weights/woman_1.pt"),
-            "woman_2": os.path.join(base_dir, "logs/character_factory_weights/woman_2.pt"),
-            "woman_3": os.path.join(base_dir, "logs/character_factory_weights/woman_3.pt"),
-            "woman_4": os.path.join(base_dir, "logs/character_factory_weights/woman_4.pt"),
-            "woman_5": os.path.join(base_dir, "logs/character_factory_weights/woman_5.pt"),
-            "woman_6": os.path.join(base_dir, "logs/character_factory_weights/woman_6.pt"),
-            "woman_7": os.path.join(base_dir, "logs/character_factory_weights/woman_7.pt"),
-            "woman_8": os.path.join(base_dir, "logs/character_factory_weights/woman_8.pt"),
-            "woman_9": os.path.join(base_dir, "logs/character_factory_weights/woman_9.pt")
+            "[man_1]": os.path.join(base_dir, "logs/character_factory_weights/man_1.pt"),
+            "[man_2]": os.path.join(base_dir, "logs/character_factory_weights/man_2.pt"),
+            "[man_3]": os.path.join(base_dir, "logs/character_factory_weights/man_3.pt"),
+            "[man_4]": os.path.join(base_dir, "logs/character_factory_weights/man_4.pt"),
+            "[man_5]": os.path.join(base_dir, "logs/character_factory_weights/man_5.pt"),
+            "[man_6]": os.path.join(base_dir, "logs/character_factory_weights/man_6.pt"),
+            "[man_7]": os.path.join(base_dir, "logs/character_factory_weights/man_7.pt"),
+            "[man_8]": os.path.join(base_dir, "logs/character_factory_weights/man_8.pt"),
+            "[man_9]": os.path.join(base_dir, "logs/character_factory_weights/man_9.pt"),
+            "[woman_1]": os.path.join(base_dir, "logs/character_factory_weights/woman_1.pt"),
+            "[woman_2]": os.path.join(base_dir, "logs/character_factory_weights/woman_2.pt"),
+            "[woman_3]": os.path.join(base_dir, "logs/character_factory_weights/woman_3.pt"),
+            "[woman_4]": os.path.join(base_dir, "logs/character_factory_weights/woman_4.pt"),
+            "[woman_5]": os.path.join(base_dir, "logs/character_factory_weights/woman_5.pt"),
+            "[woman_6]": os.path.join(base_dir, "logs/character_factory_weights/woman_6.pt"),
+            "[woman_7]": os.path.join(base_dir, "logs/character_factory_weights/woman_7.pt"),
+            "[woman_8]": os.path.join(base_dir, "logs/character_factory_weights/woman_8.pt"),
+            "[woman_9]": os.path.join(base_dir, "logs/character_factory_weights/woman_9.pt")
         }
 
-        self.valid_ids = ['man_1', 'man_2', 'man_3', 'man_4', 'man_5', 'man_6', 'man_7', 'man_8', 'man_9', 'woman_1', 'woman_2', 'woman_3', 'woman_4', 'woman_5', 'woman_6', 'woman_7', 'woman_8', 'woman_9']
+        self.valid_ids = ['[man_1]', '[man_2]', '[man_3]', '[man_4]', '[man_5]', '[man_6]', '[man_7]', '[man_8]', '[man_9]', '[woman_1]', '[woman_2]', '[woman_3]', '[woman_4]', '[woman_5]', '[woman_6]', '[woman_7]', '[woman_8]', '[woman_9]']
 
         
 
@@ -255,9 +255,6 @@ class PanFusion(PanoGenerator):
         self.text_encoder.get_input_embeddings().weight.data[token_ids[0]] = v1_emb
         self.text_encoder.get_input_embeddings().weight.data[token_ids[1]] = v2_emb
 
-
-
-
     @torch.no_grad()
     def inference(self, batch):
         if "models.id_embedding" not in sys.modules:
@@ -269,7 +266,6 @@ class PanFusion(PanoGenerator):
         print(f"[DEBUG] Cleaned prompt: {cleaned_prompt}")
         print(f"[DEBUG] Identity mapping: {id_mapping}")
 
-        
 
         for id_token, placeholder_tokens in id_mapping.items():
             embedding_path = self.identity_embedding_paths.get(id_token)

@@ -241,6 +241,7 @@ class PanFusion(PanoGenerator):
         for id_token, placeholder_tokens in id_mapping.items():
             embedding_path = self.identity_embedding_paths.get(id_token)
             if embedding_path is None:
+                print("[WARNING] embedding id does not exist")
             else:
                 self.inject_identity_embeddings(embedding_path, placeholder_tokens)
 

@@ -109,6 +109,11 @@ class PanoGenerator(PanoBase):
             new_k = new_k.replace('to_out.0.lora_layer', 'processor.to_out_lora')
             state_dict[new_k] = state_dict.pop(old_k)
 
+        current_state = self.state_dict()
+        for key in current_state:
+            if key not in state_dict:
+                state_dict[key] = current_state[key]
+
     def on_load_checkpoint(self, checkpoint):
         self.exclude_eval_metrics(checkpoint)
         self.convert_state_dict(checkpoint['state_dict'])

@@ -1,0 +1,120 @@
+# lightning.pytorch==2.2.1
+seed_everything: 0
+trainer:
+  accelerator: auto
+  strategy: ddp
+  devices: auto
+  num_nodes: 1
+  precision: 32
+  logger:
+    class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      name: null
+      save_dir: logs/6cxpl7xb
+      version: null
+      offline: false
+      dir: null
+      id: 6cxpl7xb
+      anonymous: null
+      project: panfusionlr
+      log_model: false
+      experiment: null
+      prefix: ''
+      checkpoint_name: null
+      job_type: null
+      config: null
+      entity: null
+      reinit: null
+      tags: null
+      group: null
+      notes: null
+      magic: null
+      config_exclude_keys: null
+      config_include_keys: null
+      mode: null
+      allow_val_change: null
+      resume: allow
+      force: null
+      tensorboard: null
+      sync_tensorboard: null
+      monitor_gym: null
+      save_code: null
+      fork_from: null
+      settings: null
+  callbacks: null
+  fast_dev_run: false
+  max_epochs: 10
+  min_epochs: null
+  max_steps: -1
+  min_steps: null
+  max_time: null
+  limit_train_batches: null
+  limit_val_batches: 100
+  limit_test_batches: null
+  limit_predict_batches: null
+  overfit_batches: 0.0
+  val_check_interval: null
+  check_val_every_n_epoch: 5
+  num_sanity_val_steps: 0
+  log_every_n_steps: 5
+  enable_checkpointing: null
+  enable_progress_bar: null
+  enable_model_summary: null
+  accumulate_grad_batches: 1
+  gradient_clip_val: null
+  gradient_clip_algorithm: null
+  deterministic: null
+  benchmark: true
+  inference_mode: true
+  use_distributed_sampler: true
+  profiler: null
+  detect_anomaly: false
+  barebones: false
+  plugins: null
+  sync_batchnorm: false
+  reload_dataloaders_every_n_epochs: 0
+  default_root_dir: null
+ckpt_path: ./logs/4142dlo4/checkpoints/last.ckpt
+verbose: true
+data:
+  class_path: dataset.PanimeDataModule
+  init_args:
+    data_dir: data/Panime
+    fov: 90
+    pers_resolution: 256
+    pano_height: 512
+    uncond_ratio: 0.2
+    batch_size: 1
+    num_workers: 8
+    result_dir: null
+    rand_rot_img: false
+    rand_flip: true
+    gt_as_result: false
+    horizon_layout: false
+    manhattan_layout: false
+    layout_cond_type: null
+    repeat_predict: 10
+model:
+  class_path: models.PanFusion
+  init_args:
+    use_pers_prompt: true
+    use_pano_prompt: true
+    copy_pano_prompt: true
+    lr: 3.0e-06
+    guidance_scale: 9.0
+    model_id: stabilityai/stable-diffusion-2-base
+    diff_timestep: 50
+    latent_pad: 8
+    pano_lora: true
+    train_pano_lora: true
+    pers_lora: true
+    train_pers_lora: true
+    lora_rank: 4
+    ckpt_path: null
+    rot_diff: 90.0
+    layout_cond: false
+    pers_layout_cond: false
+    unet_pad: true
+    pano_prompt_prefix: ''
+    pers_prompt_prefix: ''
+    mv_pano_prompt: false

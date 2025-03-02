@@ -540,14 +540,14 @@ class PanFusion(PanoGenerator):
         self.log('test/lpips_epoch', epoch_avg_lpips, prog_bar=True)
 
         try:
-            epoch_fid = self.fid_metric_test.compute().item()
+            epoch_fid = self.fid_metric.compute().item()
         except Exception as e:
             self.print(f"Error computing FID on test set: {e}")
             epoch_fid = float('nan')
         self.log('test/fid_epoch', epoch_fid, prog_bar=True)
 
         self._test_lpips.clear()
-        self.fid_metric_test.reset()
+        self.fid_metric.reset()
 
     @torch.no_grad()
     @rank_zero_only

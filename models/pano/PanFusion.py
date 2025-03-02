@@ -197,7 +197,7 @@ class PanFusion(PanoGenerator):
     
 
     def parse_prompt_for_identities(self, prompt):
-        pattern = r'\b(' + '|'.join(self.valid_ids) + r')\b'
+        pattern = r'\b(' + '|'.join(map(re.escape, self.valid_ids)) + r')\b'
         found = re.findall(pattern, prompt)
         mapping = {}
         placeholder_index = 1
@@ -211,9 +211,10 @@ class PanFusion(PanoGenerator):
             if token in mapping:
                 return " ".join(mapping[token])
             return token
-            
+                
         cleaned_prompt = re.sub(pattern, replace_func, prompt)
         return cleaned_prompt, mapping
+
 
     def inject_identity_embeddings(self, identity_embedding_path, placeholder_tokens):
         fixed_embedding = torch.load(identity_embedding_path).to(self.device)
@@ -231,14 +232,12 @@ class PanFusion(PanoGenerator):
 
     @torch.no_grad()
     def inference(self, batch):
-        if "models.id_embedding" not in sys.modules:
-            sys.modules["models.id_embedding"] = sys.modules["models.cgen.id_embedding"]
-
         raw_prompt = batch['pano_prompt'][0]
         cleaned_prompt, id_mapping = self.parse_prompt_for_identities(raw_prompt)
         batch['pano_prompt'][0] = cleaned_prompt
 
         for id_token, placeholder_tokens in id_mapping.items():
+            print(id_token, placeholder_tokens)
             embedding_path = self.identity_embedding_paths.get(id_token)
             if embedding_path is None:
                 print("[WARNING] embedding id does not exist")

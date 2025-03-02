@@ -7,8 +7,8 @@
 #SBATCH --cpus-per-gpu=4           
 #SBATCH --mem=32G                  
 #SBATCH --time=48:00:00           
-#SBATCH --job-name=PanimeTest
-#SBATCH --output=/scratch/users/%u/panimetest.out
+#SBATCH --job-name=oldpanfusiontest
+#SBATCH --output=/scratch/users/%u/oldpanfusiontest.out
 #
 ###################  END OF SLURM OPTIONS  ##################
 
@@ -18,4 +18,4 @@ cd /scratch_tmp/prj/inf_vr_audio_book/vraudiobook_final/vraudiobook
 
 conda activate panfusion
 
-WANDB_NAME=PanimeTest python main.py test --data=PanimeDataModule --model=PanFusion  --ckpt_path=./logs/a2tw2ymw/checkpoints/epoch_179.ckpt
+WANDB_NAME=PanimeTest python main.py test --data=PanimeDataModule --model=PanFusion  --ckpt_path=./logs/4142dlo4/checkpoints/last.ckpt

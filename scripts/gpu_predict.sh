@@ -18,4 +18,4 @@ cd /scratch_tmp/prj/inf_vr_audio_book/vraudiobook_final/vraudiobook
 
 conda activate panfusion
 
-WANDB_NAME=PanimeCFPredict python main.py predict --data=PanimeDataModule --model=PanFusion --ckpt_path=./logs/a2tw2ymw/checkpoints/epoch_179.ckpt
+WANDB_MODE=offline WANDB_NAME=PanimeCFPredict python main.py predict --data=PanimeDataModule --model=PanFusion --ckpt_path=./logs/a2tw2ymw/checkpoints/epoch_179.ckpt

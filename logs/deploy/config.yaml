@@ -10,11 +10,11 @@ trainer:
     class_path: lightning.pytorch.loggers.WandbLogger
     init_args:
       name: null
-      save_dir: logs/rxgheb96
+      save_dir: logs/deploy
       version: null
       offline: false
       dir: null
-      id: rxgheb96
+      id: deploy
       anonymous: null
       project: panfusionlr
       log_model: false
@@ -74,8 +74,8 @@ trainer:
   sync_batchnorm: false
   reload_dataloaders_every_n_epochs: 0
   default_root_dir: null
+return_predictions: null
 ckpt_path: ./logs/a2tw2ymw/checkpoints/epoch_179.ckpt
-verbose: true
 data:
   class_path: dataset.PanimeDataModule
   init_args:

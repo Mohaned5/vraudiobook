@@ -14,6 +14,9 @@ import torchvision.transforms as T
 import sys
 from omegaconf import OmegaConf
 import re
+from torchmetrics.image.kid import KernelInceptionDistance
+from torchmetrics.image.ssim import MultiScaleStructuralSimilarityIndexMeasure
+from torchmetrics.image.inception import InceptionScore
 
 class PanFusion(PanoGenerator):
     def __init__(
@@ -26,9 +29,7 @@ class PanFusion(PanoGenerator):
         super().__init__(**kwargs)
         self.save_hyperparameters()
 
-       # in your __init__:
         self.lpips_model = lpips.LPIPS(net='alex')
-        # Mark them as eval and not trainable
         self.lpips_model.eval()
         for param in self.lpips_model.parameters():
             param.requires_grad = False
@@ -37,11 +38,34 @@ class PanFusion(PanoGenerator):
         for param in self.fid_metric.parameters():
             param.requires_grad = False
         
-        self.fid_transform = T.Compose([
+        self.fid_transform_fid = T.Compose([
             T.Resize(299),           
             T.CenterCrop(299),
             T.ToTensor(),             
         ])
+
+        self.fid_transform = T.Compose([
+            T.Resize(299),           
+            T.CenterCrop(299),
+            T.ToTensor(),
+            T.Lambda(lambda x: (x * 255).to(torch.uint8)),  # Convert to uint8
+        ])
+
+        self.fid_transform_uint8 = T.Compose([
+            T.Resize(299),
+            T.CenterCrop(299),
+            T.PILToTensor(),  # Produces a torch.Tensor with dtype=torch.uint8
+        ])
+        self.img_transform_float = T.Compose([
+            T.Resize(299),
+            T.CenterCrop(299),
+            T.ToTensor(),     # Produces a float tensor in [0,1]
+        ])
+
+        self.kid_metric = KernelInceptionDistance(subset_size=50) 
+        self.ms_ssim_metric = MultiScaleStructuralSimilarityIndexMeasure(data_range=1.0)
+        self.inception_score = InceptionScore()
+
 
         self._val_lpips = []
 
@@ -197,7 +221,8 @@ class PanFusion(PanoGenerator):
     
 
     def parse_prompt_for_identities(self, prompt):
-        pattern = r'\b(' + '|'.join(map(re.escape, self.valid_ids)) + r')\b'
+        print("[DEBUG] Original prompt:", prompt)
+        pattern = r'(' + '|'.join(map(re.escape, self.valid_ids)) + r')'
         found = re.findall(pattern, prompt)
         mapping = {}
         placeholder_index = 1
@@ -213,6 +238,7 @@ class PanFusion(PanoGenerator):
             return token
                 
         cleaned_prompt = re.sub(pattern, replace_func, prompt)
+        print("[DEBUG] ", cleaned_prompt)
         return cleaned_prompt, mapping
 
 
@@ -386,8 +412,6 @@ class PanFusion(PanoGenerator):
 
                 self.fid_metric.update(pred_img_resized.unsqueeze(0), real=False)
                 self.fid_metric.update(gt_img_resized.unsqueeze(0), real=True)
-
-
         
         if lpips_scores:
             avg_lpips_batch = sum(lpips_scores) / len(lpips_scores)
@@ -517,11 +541,23 @@ class PanFusion(PanoGenerator):
                 pred_pil = transforms.ToPILImage()(pred_img_01)
                 gt_pil   = transforms.ToPILImage()(gt_img_01)
 
-                pred_img_resized = self.fid_transform(pred_pil).to(device)
-                gt_img_resized   = self.fid_transform(gt_pil).to(device)
+                pred_img_resized = self.img_transform_float(pred_pil).to(device)
+                gt_img_resized   = self.img_transform_float(gt_pil).to(device)
 
-                self.fid_metric.update(pred_img_resized.unsqueeze(0), real=False)
-                self.fid_metric.update(gt_img_resized.unsqueeze(0),   real=True)
+
+                pred_img_resized = self.fid_transform_fid(pred_pil).to(device)
+                gt_img_resized   = self.fid_transform_fid(gt_pil).to(device)
+
+                self.fid_metric.update(pred_img_resized_fid.unsqueeze(0), real=False)
+                self.fid_metric.update(gt_img_resized_fid.unsqueeze(0),   real=True)
+                pred_img_uint8 = self.fid_transform_uint8(pred_pil).to(device)
+                gt_img_uint8   = self.fid_transform_uint8(gt_pil).to(device)
+                self.kid_metric.update(pred_img_uint8.unsqueeze(0), real=False)
+                self.kid_metric.update(gt_img_uint8.unsqueeze(0), real=True)
+                self.inception_score.update(pred_img_uint8.unsqueeze(0))
+
+
+                self.ms_ssim_metric.update(pred_img_resized.unsqueeze(0), gt_img_resized.unsqueeze(0))
 
         if lpips_scores:
             avg_lpips_batch = sum(lpips_scores) / len(lpips_scores)
@@ -546,6 +582,20 @@ class PanFusion(PanoGenerator):
             epoch_fid = float('nan')
         self.log('test/fid_epoch', epoch_fid, prog_bar=True)
 
+        kid_mean, kid_std = self.kid_metric.compute()
+        self.log('val/kid_mean_epoch', kid_mean.item(), prog_bar=True)
+        self.log('val/kid_std_epoch', kid_std.item(), prog_bar=False)
+
+        ms_ssim_val = self.ms_ssim_metric.compute().item()
+        self.log('val/ms_ssim_epoch', ms_ssim_val, prog_bar=True)
+
+        score_mean, score_std = self.inception_score.compute()
+        self.log('val/inception_score_mean', score_mean, prog_bar=True)
+        self.log('val/inception_score_std', score_std, prog_bar=False)
+        self.inception_score.reset()
+
+        self.kid_metric.reset()
+        self.ms_ssim_metric.reset()
         self._test_lpips.clear()
         self.fid_metric.reset()
 

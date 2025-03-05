@@ -18,4 +18,4 @@ cd /scratch_tmp/prj/inf_vr_audio_book/vraudiobook_final/vraudiobook
 
 conda activate panfusion
 
-WANDB_NAME=PanimeTest python main.py test --data=PanimeDataModule --model=PanFusion  --ckpt_path=./logs/a2tw2ymw/checkpoints/epoch_179.ckpt
+WANDB_NAME=PanimeTest python main.py test --data=PanimeDataModule --model=PanFusion  --model.ckpt_path=./logs/a2tw2ymw/checkpoints/epoch_179.ckpt --data.num_workers=1

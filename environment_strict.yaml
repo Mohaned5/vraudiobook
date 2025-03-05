@@ -1,4 +1,4 @@
-name: panfusion
+name: panfusionclip
 channels:
   - defaults
 dependencies:

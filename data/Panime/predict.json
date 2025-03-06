@@ -1,7 +1,1 @@
-[
-  {
-    "scene_id": "1",
-    "view_id": "2",
-    "pano_prompt": "Lots of photographers standing in front of a forgotten cabin in the woods, with ivy creeping up the walls and broken windows letting in faint beams of light."
-  }
-]
+[{"scene_id": "test_scene", "view_id": "1", "pano_prompt": "A test scene: a peaceful landscape"}, {"scene_id": "test_scene", "view_id": "2", "pano_prompt": "A test scene: a bustling city"}]

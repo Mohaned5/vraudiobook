@@ -38,20 +38,20 @@ class PanFusion(PanoGenerator):
         for param in self.fid_metric.parameters():
             param.requires_grad = False
         
-        self.fid_transform_fid = T.Compose([
+        self.fid_transform_float = T.Compose([
             T.Resize(299),           
             T.CenterCrop(299),
             T.ToTensor(),             
         ])
 
-        self.fid_transform = T.Compose([
+        self.transform_uint8_scaled = T.Compose([
             T.Resize(299),           
             T.CenterCrop(299),
             T.ToTensor(),
             T.Lambda(lambda x: (x * 255).to(torch.uint8)),  # Convert to uint8
         ])
 
-        self.fid_transform_uint8 = T.Compose([
+        self.transform_raw_uint8 = T.Compose([
             T.Resize(299),
             T.CenterCrop(299),
             T.PILToTensor(),  # Produces a torch.Tensor with dtype=torch.uint8
@@ -405,9 +405,9 @@ class PanFusion(PanoGenerator):
                 pred_pil = transforms.ToPILImage()(pred_img_01)
                 gt_pil   = transforms.ToPILImage()(gt_img_01)
 
-                pred_img_resized = self.fid_transform(pred_pil)
+                pred_img_resized = self.transform_uint8_scaled(pred_pil)
                 pred_img_resized = pred_img_resized.to(device) 
-                gt_img_resized   = self.fid_transform(gt_pil)
+                gt_img_resized   = self.transform_uint8_scaled(gt_pil)
                 gt_img_resized = gt_img_resized.to(device)
 
                 self.fid_metric.update(pred_img_resized.unsqueeze(0), real=False)
@@ -545,13 +545,13 @@ class PanFusion(PanoGenerator):
                 gt_img_resized   = self.img_transform_float(gt_pil).to(device)
 
 
-                pred_img_resized = self.fid_transform_fid(pred_pil).to(device)
-                gt_img_resized   = self.fid_transform_fid(gt_pil).to(device)
+                pred_img_resized = self.fid_transform_float(pred_pil).to(device)
+                gt_img_resized   = self.fid_transform_float(gt_pil).to(device)
 
                 self.fid_metric.update(pred_img_resized_fid.unsqueeze(0), real=False)
                 self.fid_metric.update(gt_img_resized_fid.unsqueeze(0),   real=True)
-                pred_img_uint8 = self.fid_transform_uint8(pred_pil).to(device)
-                gt_img_uint8   = self.fid_transform_uint8(gt_pil).to(device)
+                pred_img_uint8 = self.transform_raw_uint8(pred_pil).to(device)
+                gt_img_uint8   = self.transform_raw_uint8(gt_pil).to(device)
                 self.kid_metric.update(pred_img_uint8.unsqueeze(0), real=False)
                 self.kid_metric.update(gt_img_uint8.unsqueeze(0), real=True)
                 self.inception_score.update(pred_img_uint8.unsqueeze(0))

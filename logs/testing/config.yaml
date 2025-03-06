@@ -10,11 +10,11 @@ trainer:
     class_path: lightning.pytorch.loggers.WandbLogger
     init_args:
       name: null
-      save_dir: logs/deploy
+      save_dir: logs/testing
       version: null
       offline: false
       dir: null
-      id: deploy
+      id: testing
       anonymous: null
       project: panfusionlr
       log_model: false
@@ -75,7 +75,7 @@ trainer:
   reload_dataloaders_every_n_epochs: 0
   default_root_dir: null
 return_predictions: null
-ckpt_path: ./logs/a2tw2ymw/checkpoints/epoch_179.ckpt
+ckpt_path: null
 data:
   class_path: dataset.PanimeDataModule
   init_args:
@@ -110,7 +110,7 @@ model:
     pers_lora: true
     train_pers_lora: true
     lora_rank: 4
-    ckpt_path: null
+    ckpt_path: ./logs/a2tw2ymw/checkpoints/epoch_179.ckpt
     rot_diff: 90.0
     layout_cond: false
     pers_layout_cond: false

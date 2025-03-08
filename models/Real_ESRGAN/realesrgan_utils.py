@@ -1,7 +1,7 @@
 # realesrgan_utils.py
 
 from basicsr.archs.rrdbnet_arch import RRDBNet
-from realesrgan import RealESRGANer
+from .realesrgan import RealESRGANer
 import os
 
 def initialize_realesrgan(model_name='RealESRGAN_x4plus_anime_6B', tile=0, gpu_id=None):

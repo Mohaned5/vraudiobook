@@ -316,6 +316,8 @@ class PanFusion(PanoGenerator):
 
         images_pred = self.decode_latent(latents, self.vae)
         images_pred = tensor_to_image(images_pred)
+        print("[DEBUG inference] images_pred:", 
+          f"shape={images_pred.shape}, dtype={images_pred.dtype}")
 
         pano_latent_pad = self.pad_pano(pano_latent, latent=True)
         pano_pred_pad = self.decode_latent(pano_latent_pad, self.vae)
@@ -330,13 +332,23 @@ class PanFusion(PanoGenerator):
         # img2 = np.roll(img2, img2.shape[0]//2, axis=0)
         # img2 = np.roll(img2, img2.shape[1]//2, axis=1)
 
-        upsampler = initialize_realesrgan(model_name='RealESRGAN_x4plus_anime_6B', tile=0, gpu_id=0)
+        upsampler = initialize_realesrgan(
+            model_name='RealESRGAN_x4plus_anime_6B',
+            tile=0,
+            gpu_id=0
+        )
 
-        # Upscale each generated image (or just the panorama, as needed)
-        upscaled_images = [upscale_image(img, upsampler) for img in images_pred]
-        upscaled_pano = upscale_image(pano_pred[0, 0], upsampler)
+        pano_pred_squeezed = pano_pred[0, 0]    # shape=(512,1024,3)
+        upscaled_pano = upscale_image(pano_pred_squeezed, upsampler)
 
-        return upscaled_images, upscaled_pano
+        # upscaled_images = []
+        # b, m = images_pred.shape[:2]
+        # for i in range(b):
+        #     for j in range(m):
+        #         single_img = images_pred[i, j]   # (256,256,3)
+        #         upscaled_images.append(upscale_image(single_img, upsampler))
+
+        return images_pred, upscaled_pano
 
         # return images_pred, pano_pred
 
@@ -469,7 +481,6 @@ class PanFusion(PanoGenerator):
 
     def inference_and_save(self, batch, output_dir, ext='png'):
         prompt_path = os.path.join(output_dir, 'prompt.txt')
-        print(f"Debug: Using prompt => {batch['pano_prompt']}")
         if os.path.exists(prompt_path):
             return
 
@@ -477,7 +488,7 @@ class PanFusion(PanoGenerator):
 
         os.makedirs(output_dir, exist_ok=True)
         path = os.path.join(output_dir, f"pano.{ext}")
-        im = Image.fromarray(pano_pred[0, 0])
+        im = Image.fromarray(pano_pred)
         im.save(path)
 
         with open(prompt_path, 'w') as f:

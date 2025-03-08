@@ -1,1 +1,7 @@
-[{"scene_id": "test_scene", "view_id": "1", "pano_prompt": "A test scene: a peaceful landscape"}, {"scene_id": "test_scene", "view_id": "2", "pano_prompt": "A test scene: a bustling city"}]
+[
+    {
+      "scene_id": "1",
+      "view_id": "1",
+      "pano_prompt": "a futuristic cityscape, with neon lights reflecting on wet pavement and modern skyscrapers in the background."
+    }
+  ]

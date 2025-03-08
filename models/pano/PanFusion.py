@@ -17,6 +17,7 @@ import re
 from torchmetrics.image.kid import KernelInceptionDistance
 from torchmetrics.image.ssim import MultiScaleStructuralSimilarityIndexMeasure
 from torchmetrics.image.inception import InceptionScore
+from ..Real_ESRGAN.realesrgan_utils import initialize_realesrgan, upscale_image
 
 class PanFusion(PanoGenerator):
     def __init__(
@@ -329,7 +330,15 @@ class PanFusion(PanoGenerator):
         # img2 = np.roll(img2, img2.shape[0]//2, axis=0)
         # img2 = np.roll(img2, img2.shape[1]//2, axis=1)
 
-        return images_pred, pano_pred
+        upsampler = initialize_realesrgan(model_name='RealESRGAN_x4plus_anime_6B', tile=0, gpu_id=0)
+
+        # Upscale each generated image (or just the panorama, as needed)
+        upscaled_images = [upscale_image(img, upsampler) for img in images_pred]
+        upscaled_pano = upscale_image(pano_pred[0, 0], upsampler)
+
+        return upscaled_images, upscaled_pano
+
+        # return images_pred, pano_pred
 
     def to01(self, x: torch.Tensor) -> torch.Tensor:
         """
